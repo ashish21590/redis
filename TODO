@@ -1,4 +1,4 @@
-BETA 3 TODO
+BETA 4 TODO
 - sunion ssub
 - write integers in a special way on disk (and on memory?)
 - setnx, sadd, srem, should return 0, 1, -1
