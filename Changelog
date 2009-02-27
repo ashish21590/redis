@@ -1,0 +1,6 @@
+27 Feb 2009 - Documentation updated accordingly, all docs are now HTMLized
+27 Feb 2009 - unlink the temp file when DB dump fails due to short write
+27 Feb 2009 - Fix for RANDOMKEY, now returns a value, SINTER
+26 Feb 2009 - SADD, SREM, SCARD, SISMEMBER, saving/loading of Set values
+26 Feb 2009 - LSET and TYPE commands implemented
+26 Feb 2009 - Beta-2 released
