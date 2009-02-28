@@ -8,8 +8,8 @@ __author__ = "Ludovico Magnocavallo <ludo\x40qix\x2eit>"
 __copyright__ = "Copyright 2009, Ludovico Magnocavallo"
 __license__ = "MIT"
 __version__ = "0.1"
-__revision__ = "$LastChangedRevision: 3197 $"[22:-2]
-__date__ = "$LastChangedDate: 2009-02-27 17:27:00 +0100 (Fri, 27 Feb 2009) $"[18:-2]
+__revision__ = "$LastChangedRevision$"[22:-2]
+__date__ = "$LastChangedDate$"[18:-2]
 
 
 import socket
@@ -95,7 +95,7 @@ class Redis(object):
         >>> r.set('b', 105.2)
         'OK'
         >>> r.set('b', 'xxx', preserve=True)
-        'OK'
+        0
         >>> r.get('b')
         '105.2'
         >>> 
@@ -111,7 +111,7 @@ class Redis(object):
             ))
         except UnicodeEncodeError, e:
             raise InvalidData("Error encoding unicode value for key '%s': %s." % (name, e))
-        return self._get_simple_response()
+        return self._get_numeric_response() if preserve else self._get_simple_response()
     
     def get(self, name):
         """
@@ -141,7 +141,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('a')
-        'OK'
+        1
         >>> r.incr('a')
         1
         >>> r.incr('a')
@@ -161,7 +161,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('a')
-        'OK'
+        1
         >>> r.decr('a')
         -1
         >>> r.decr('a')
@@ -196,18 +196,20 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('dsjhfksjdhfkdsjfh')
-        'OK'
+        0
         >>> r.set('a', 'a')
         'OK'
         >>> r.delete('a')
-        'OK'
+        1
         >>> r.exists('a')
+        0
+        >>> r.delete('a')
         0
         >>> 
         """
         self.connect()
         self._write('DEL %s\r\n' % name)
-        return self._get_simple_response()
+        return self._get_numeric_response()
 
     def key_type(self, name):
         """
@@ -229,7 +231,7 @@ class Redis(object):
         >>> r.keys('a*')
         ['a', 'a2']
         >>> r.delete('a2')
-        'OK'
+        1
         >>> r.keys('sjdfhskjh*')
         []
         >>>
@@ -271,25 +273,23 @@ class Redis(object):
         no such key
         >>> r.set('a', 1)
         'OK'
-        >>> try:
-        ...     r.rename('b', 'a', preserve=True)
-        ... except ResponseError, e:
-        ...     print e
-        destination key exists
+        >>> r.rename('b', 'a', preserve=True)
+        0
         >>> 
         """
         self.connect()
         if preserve:
             self._write('RENAMENX %s %s\r\n' % (src, dst))
+            return self._get_numeric_response()
         else:
             self._write('RENAME %s %s\r\n' % (src, dst))
-        return self._get_simple_response().strip()
+            return self._get_simple_response().strip()
     
     def push(self, name, value, tail=False):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> r.push('l', 'a')
         'OK'
         >>> r.set('a', 'a')
@@ -316,7 +316,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> r.push('l', 'a')
         'OK'
         >>> r.llen('l')
@@ -335,7 +335,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> r.lrange('l', 0, 1)
         []
         >>> r.push('l', 'aaa')
@@ -372,7 +372,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> try:
         ...     r.ltrim('l', 0, 1)
         ... except ResponseError, e:
@@ -402,7 +402,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> r.lindex('l', 0)
         >>> r.push('l', 'aaa')
         'OK'
@@ -425,7 +425,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> r.pop('l')
         >>> r.push('l', 'aaa')
         'OK'
@@ -455,7 +455,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('l')
-        'OK'
+        1
         >>> try:
         ...     r.lset('l', 0, 'a')
         ... except ResponseError, e:
@@ -488,11 +488,11 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('s')
-        'OK'
+        1
         >>> r.sadd('s', 'a')
-        'OK'
+        1
         >>> r.sadd('s', 'b')
-        'OK'
+        1
         >>> 
         """
         self.connect()
@@ -504,22 +504,19 @@ class Redis(object):
             ))
         except UnicodeEncodeError, e:
             raise InvalidData("Error encoding unicode value for element in set '%s': %s." % (name, e))
-        return self._get_simple_response()
+        return self._get_numeric_response()
         
     def srem(self, name, value):
         """
         >>> r = Redis()
         >>> r.delete('s')
-        'OK'
-        >>> try:
-        ...     r.srem('s', 'aaa')
-        ... except ResponseError, e:
-        ...     print e
-        no such key
-        >>> r.sadd('s', 'a')
-        'OK'
+        1
+        >>> r.srem('s', 'aaa')
+        0
+        >>> r.sadd('s', 'b')
+        1
         >>> r.srem('s', 'b')
-        'OK'
+        1
         >>> r.sismember('s', 'b')
         0
         >>> 
@@ -533,17 +530,17 @@ class Redis(object):
             ))
         except UnicodeEncodeError, e:
             raise InvalidData("Error encoding unicode value for element in set '%s': %s." % (name, e))
-        return self._get_simple_response()
+        return self._get_numeric_response()
     
     def sismember(self, name, value):
         """
         >>> r = Redis()
         >>> r.delete('s')
-        'OK'
+        1
         >>> r.sismember('s', 'b')
-        -1
+        0
         >>> r.sadd('s', 'a')
-        'OK'
+        1
         >>> r.sismember('s', 'b')
         0
         >>> r.sismember('s', 'a')
@@ -565,17 +562,17 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('s1')
-        'OK'
+        1
         >>> r.delete('s2')
-        'OK'
+        1
         >>> r.delete('s3')
-        'OK'
+        1
         >>> r.sadd('s1', 'a')
-        'OK'
+        1
         >>> r.sadd('s2', 'a')
-        'OK'
+        1
         >>> r.sadd('s3', 'b')
-        'OK'
+        1
         >>> try:
         ...     r.sinter()
         ... except ResponseError, e:
@@ -610,11 +607,11 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('s')
-        'OK'
+        1
         >>> r.sadd('s', 'a')
-        'OK'
+        1
         >>> r.sadd('s', 'b')
-        'OK'
+        1
         >>> try:
         ...     r.smembers('l')
         ... except ResponseError, e:
@@ -642,7 +639,7 @@ class Redis(object):
         """
         >>> r = Redis()
         >>> r.delete('a')
-        'OK'
+        1
         >>> r.select(1)
         'OK'
         >>> r.set('a', 1)
@@ -666,11 +663,11 @@ class Redis(object):
         >>> r.select(1)
         'OK'
         >>> r.delete('a')
-        'OK'
+        1
         >>> r.select(0)
         'OK'
         >>> r.move('a', 1)
-        'OK'
+        1
         >>> r.get('a')
         >>> r.select(1)
         'OK'
@@ -682,7 +679,7 @@ class Redis(object):
         """
         self.connect()
         self._write('MOVE %s %s\r\n' % (name, db))
-        return self._get_simple_response()
+        return self._get_numeric_response()
     
     def save(self, background=False):
         """
