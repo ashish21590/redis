@@ -182,7 +182,7 @@ proc main {server port} {
         redis_del $fd mylist
         redis_set $fd mylist foobar
         redis_llen $fd mylist
-    } {-1}
+    } {-2}
 
     test {LINDEX against non-list value error} {
         redis_lindex $fd mylist 0
@@ -228,7 +228,7 @@ proc main {server port} {
         redis_set $fd mykey foo
         redis_set $fd mykey2 bar
         redis_renamenx $fd mykey mykey2
-    } {-ERR*}
+    } {0}
 
     test {RENAMENX against already existing key (2)} {
         set res [redis_get $fd mykey]
@@ -276,7 +276,7 @@ proc main {server port} {
     test {MOVE against key existing in the target DB} {
         redis_set $fd mykey hello
         redis_move $fd mykey 1
-    } {-ERR*}
+    } {0}
 
     test {SET/GET keys in different DBs} {
         redis_set $fd a hello
@@ -392,7 +392,7 @@ proc main {server port} {
 
     test {SADD against non set} {
         redis_sadd $fd mylist foo
-    } {-ERR*}
+    } {-2}
 
     test {SREM basics} {
         redis_sadd $fd myset ciao
@@ -507,7 +507,7 @@ proc redis_set {fd key val} {
 
 proc redis_setnx {fd key val} {
     redis_writenl $fd "setnx $key [string length $val]\r\n$val"
-    redis_read_retcode $fd
+    redis_read_integer $fd
 }
 
 proc redis_get {fd key} {
@@ -522,12 +522,12 @@ proc redis_select {fd id} {
 
 proc redis_move {fd key id} {
     redis_writenl $fd "move $key $id"
-    redis_read_retcode $fd
+    redis_read_integer $fd
 }
 
 proc redis_del {fd key} {
     redis_writenl $fd "del $key"
-    redis_read_retcode $fd
+    redis_read_integer $fd
 }
 
 proc redis_keys {fd pattern} {
@@ -597,7 +597,7 @@ proc redis_rename {fd key1 key2} {
 
 proc redis_renamenx {fd key1 key2} {
     redis_writenl $fd "renamenx $key1 $key2"
-    redis_read_retcode $fd
+    redis_read_integer $fd
 }
 
 proc redis_lpop {fd key} {
@@ -617,12 +617,12 @@ proc redis_lset {fd key index val} {
 
 proc redis_sadd {fd key val} {
     redis_writenl $fd "sadd $key [string length $val]\r\n$val"
-    redis_read_retcode $fd
+    redis_read_integer $fd
 }
 
 proc redis_srem {fd key val} {
     redis_writenl $fd "srem $key [string length $val]\r\n$val"
-    redis_read_retcode $fd
+    redis_read_integer $fd
 }
 
 proc redis_sismember {fd key val} {

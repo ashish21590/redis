@@ -120,7 +120,7 @@ struct redisCommand {
 };
 
 struct sharedObjectsStruct {
-    robj *crlf, *ok, *err, *zerobulk, *nil, *zero, *one, *pong;
+    robj *crlf, *ok, *err, *zerobulk, *nil, *zero, *one, *minus1, *minus2, *minus3, *minus4, *pong;
 } shared;
 
 /*================================ Prototypes =============================== */
@@ -536,6 +536,14 @@ static void createSharedObjects(void) {
     shared.nil = createObject(REDIS_STRING,sdsnew("nil\r\n"));
     shared.zero = createObject(REDIS_STRING,sdsnew("0\r\n"));
     shared.one = createObject(REDIS_STRING,sdsnew("1\r\n"));
+    /* no such key */
+    shared.minus1 = createObject(REDIS_STRING,sdsnew("-1\r\n"));
+    /* operation against key holding a value of the wrong type */
+    shared.minus2 = createObject(REDIS_STRING,sdsnew("-2\r\n"));
+    /* src and dest objects are the same */
+    shared.minus3 = createObject(REDIS_STRING,sdsnew("-3\r\n"));
+    /* out of range argument */
+    shared.minus4 = createObject(REDIS_STRING,sdsnew("-4\r\n"));
     shared.pong = createObject(REDIS_STRING,sdsnew("+PONG\r\n"));
 }
 
@@ -1324,14 +1332,17 @@ static void setGenericCommand(redisClient *c, int nx) {
     if (retval == DICT_ERR) {
         if (!nx)
             dictReplace(c->dict,c->argv[1],o);
-        else
+        else {
             decrRefCount(o);
+            addReply(c,shared.zero);
+            return;
+        }
     } else {
         /* Now the key is in the hash entry, don't free it */
         c->argv[1] = NULL;
     }
     server.dirty++;
-    addReply(c,shared.ok);
+    addReply(c, nx ? shared.one : shared.ok);
 }
 
 static void setCommand(redisClient *c) {
@@ -1364,9 +1375,12 @@ static void getCommand(redisClient *c) {
 }
 
 static void delCommand(redisClient *c) {
-    if (dictDelete(c->dict,c->argv[1]) == DICT_OK)
+    if (dictDelete(c->dict,c->argv[1]) == DICT_OK) {
         server.dirty++;
-    addReply(c,shared.ok);
+        addReply(c,shared.one);
+    } else {
+        addReply(c,shared.zero);
+    }
 }
 
 static void existsCommand(redisClient *c) {
@@ -1540,13 +1554,19 @@ static void renameGenericCommand(redisClient *c, int nx) {
 
     /* To use the same key as src and dst is probably an error */
     if (sdscmp(c->argv[1],c->argv[2]) == 0) {
-        addReplySds(c,sdsnew("-ERR src and dest key are the same\r\n"));
+        if (nx)
+            addReply(c,shared.minus3);
+        else
+            addReplySds(c,sdsnew("-ERR src and dest key are the same\r\n"));
         return;
     }
 
     de = dictFind(c->dict,c->argv[1]);
     if (de == NULL) {
-        addReplySds(c,sdsnew("-ERR no such key\r\n"));
+        if (nx)
+            addReply(c,shared.minus1);
+        else
+            addReplySds(c,sdsnew("-ERR no such key\r\n"));
         return;
     }
     o = dictGetEntryVal(de);
@@ -1554,7 +1574,7 @@ static void renameGenericCommand(redisClient *c, int nx) {
     if (dictAdd(c->dict,c->argv[2],o) == DICT_ERR) {
         if (nx) {
             decrRefCount(o);
-            addReplySds(c,sdsnew("-ERR destination key exists\r\n"));
+            addReply(c,shared.zero);
             return;
         }
         dictReplace(c->dict,c->argv[2],o);
@@ -1563,7 +1583,7 @@ static void renameGenericCommand(redisClient *c, int nx) {
     }
     dictDelete(c->dict,c->argv[1]);
     server.dirty++;
-    addReply(c,shared.ok);
+    addReply(c,nx ? shared.one : shared.ok);
 }
 
 static void renameCommand(redisClient *c) {
@@ -1583,7 +1603,7 @@ static void moveCommand(redisClient *c) {
     /* Obtain source and target DB pointers */
     src = c->dict;
     if (selectDb(c,atoi(c->argv[2])) == REDIS_ERR) {
-        addReplySds(c,sdsnew("-ERR target DB out of range\r\n"));
+        addReply(c,shared.minus4);
         return;
     }
     dst = c->dict;
@@ -1592,14 +1612,14 @@ static void moveCommand(redisClient *c) {
     /* If the user is moving using as target the same
      * DB as the source DB it is probably an error. */
     if (src == dst) {
-        addReplySds(c,sdsnew("-ERR source DB is the same as target DB\r\n"));
+        addReply(c,shared.minus3);
         return;
     }
 
     /* Check if the element exists and get a reference */
     de = dictFind(c->dict,c->argv[1]);
     if (!de) {
-        addReplySds(c,sdsnew("-ERR no such key\r\n"));
+        addReply(c,shared.zero);
         return;
     }
 
@@ -1607,14 +1627,14 @@ static void moveCommand(redisClient *c) {
     key = dictGetEntryKey(de);
     o = dictGetEntryVal(de);
     if (dictAdd(dst,key,o) == DICT_ERR) {
-        addReplySds(c,sdsnew("-ERR target DB already contains the moved key\r\n"));
+        addReply(c,shared.zero);
         return;
     }
 
     /* OK! key moved, free the entry in the source DB */
     dictDeleteNoFree(src,c->argv[1]);
     server.dirty++;
-    addReply(c,shared.ok);
+    addReply(c,shared.one);
 }
 
 static void pushGenericCommand(redisClient *c, int where) {
@@ -1675,7 +1695,7 @@ static void llenCommand(redisClient *c) {
     } else {
         robj *o = dictGetEntryVal(de);
         if (o->type != REDIS_LIST) {
-            addReplySds(c,sdsnew("-1\r\n"));
+            addReply(c,shared.minus2);
         } else {
             l = o->ptr;
             addReplySds(c,sdscatprintf(sdsempty(),"%d\r\n",listLength(l)));
@@ -1905,19 +1925,19 @@ static void saddCommand(redisClient *c) {
     } else {
         set = dictGetEntryVal(de);
         if (set->type != REDIS_SET) {
-            addReplySds(c,
-                sdsnew("-ERR SADD against key not holding a set value\r\n"));
+            addReply(c,shared.minus2);
             return;
         }
     }
     ele = createObject(REDIS_STRING, c->argv[2]);
+    c->argv[2] = NULL;
     if (dictAdd(set->ptr,ele,NULL) == DICT_OK) {
         server.dirty++;
+        addReply(c,shared.one);
     } else {
         decrRefCount(ele);
+        addReply(c,shared.zero);
     }
-    c->argv[2] = NULL;
-    addReply(c,shared.ok);
 }
 
 static void sremCommand(redisClient *c) {
@@ -1925,22 +1945,24 @@ static void sremCommand(redisClient *c) {
 
     de = dictFind(c->dict,c->argv[1]);
     if (de == NULL) {
-        addReplySds(c,sdsnew("-ERR no such key\r\n"));
+        addReply(c,shared.zero);
     } else {
         robj *set, *ele;
 
         set = dictGetEntryVal(de);
         if (set->type != REDIS_SET) {
-            addReplySds(c,
-                sdsnew("-ERR SDEL against key not holding a set value\r\n"));
+            addReply(c,shared.minus2);
             return;
         }
         ele = createObject(REDIS_STRING,c->argv[2]);
-        if (dictDelete(set->ptr,ele) == DICT_OK)
+        if (dictDelete(set->ptr,ele) == DICT_OK) {
             server.dirty++;
+            addReply(c,shared.one);
+        } else {
+            addReply(c,shared.zero);
+        }
         ele->ptr = NULL;
         decrRefCount(ele);
-        addReply(c,shared.ok);
     }
 }
 
@@ -1949,13 +1971,13 @@ static void sismemberCommand(redisClient *c) {
 
     de = dictFind(c->dict,c->argv[1]);
     if (de == NULL) {
-        addReplySds(c,sdsnew("-1\r\n"));
+        addReply(c,shared.zero);
     } else {
         robj *set, *ele;
 
         set = dictGetEntryVal(de);
         if (set->type != REDIS_SET) {
-            addReplySds(c,sdsnew("-1\r\n"));
+            addReply(c,shared.minus2);
             return;
         }
         ele = createObject(REDIS_STRING,c->argv[2]);
@@ -1979,7 +2001,7 @@ static void scardCommand(redisClient *c) {
     } else {
         robj *o = dictGetEntryVal(de);
         if (o->type != REDIS_SET) {
-            addReplySds(c,sdsnew("-1\r\n"));
+            addReply(c,shared.minus2);
         } else {
             s = o->ptr;
             addReplySds(c,sdscatprintf(sdsempty(),"%d\r\n",
@@ -2009,9 +2031,7 @@ static void sinterCommand(redisClient *c) {
         de = dictFind(c->dict,c->argv[j+1]);
         if (!de) {
             free(dv);
-            char *err = "No such key";
-            addReplySds(c, sdscatprintf(
-                sdsempty(),"%d\r\n%s\r\n",-((int)strlen(err)),err));
+            addReply(c,shared.nil);
             return;
         }
         setobj = dictGetEntryVal(de);
