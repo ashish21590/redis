@@ -109,6 +109,7 @@ struct redisServer {
     struct saveparam *saveparams;
     int saveparamslen;
     char *logfile;
+    char *bindaddr;
 };
 
 typedef void redisCommandProc(redisClient *c);
@@ -568,6 +569,7 @@ static void initServerConfig() {
     server.maxidletime = REDIS_MAXIDLETIME;
     server.saveparams = NULL;
     server.logfile = NULL; /* NULL = log on standard output */
+    server.bindaddr = NULL;
     ResetServerSaveParams();
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
@@ -588,7 +590,7 @@ static void initServer() {
     server.dict = malloc(sizeof(dict*)*server.dbnum);
     if (!server.dict || !server.clients || !server.el || !server.objfreelist)
         oom("server initialization"); /* Fatal OOM */
-    server.fd = anetTcpServer(server.neterr, server.port, NULL);
+    server.fd = anetTcpServer(server.neterr, server.port, server.bindaddr);
     if (server.fd == -1) {
         redisLog(REDIS_WARNING, "Opening TCP port: %s", server.neterr);
         exit(1);
@@ -645,6 +647,8 @@ static void loadServerConfig(char *filename) {
             if (server.port < 1 || server.port > 65535) {
                 err = "Invalid port"; goto loaderr;
             }
+        } else if (!strcmp(argv[0],"bind") && argc == 2) {
+            server.bindaddr = strdup(argv[1]);
         } else if (!strcmp(argv[0],"save") && argc == 3) {
             int seconds = atoi(argv[1]);
             int changes = atoi(argv[2]);
