@@ -640,6 +640,11 @@ static void loadServerConfig(char *filename) {
             if (server.maxidletime < 1) {
                 err = "Invalid timeout value"; goto loaderr;
             }
+        } else if (!strcmp(argv[0],"port") && argc == 2) {
+            server.port = atoi(argv[1]);
+            if (server.port < 1 || server.port > 65535) {
+                err = "Invalid port"; goto loaderr;
+            }
         } else if (!strcmp(argv[0],"save") && argc == 3) {
             int seconds = atoi(argv[1]);
             int changes = atoi(argv[2]);
@@ -2085,7 +2090,6 @@ static void sinterCommand(redisClient *c) {
 
 int main(int argc, char **argv) {
     initServerConfig();
-    initServer();
     if (argc == 2) {
         ResetServerSaveParams();
         loadServerConfig(argv[1]);
@@ -2094,6 +2098,7 @@ int main(int argc, char **argv) {
         fprintf(stderr,"Usage: ./redis-server [/path/to/redis.conf]\n");
         exit(1);
     }
+    initServer();
     redisLog(REDIS_NOTICE,"Server started");
     if (loadDb("dump.rdb") == REDIS_OK)
         redisLog(REDIS_NOTICE,"DB loaded from disk");
