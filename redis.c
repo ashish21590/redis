@@ -147,6 +147,8 @@ static void delCommand(redisClient *c);
 static void existsCommand(redisClient *c);
 static void incrCommand(redisClient *c);
 static void decrCommand(redisClient *c);
+static void incrbyCommand(redisClient *c);
+static void decrbyCommand(redisClient *c);
 static void selectCommand(redisClient *c);
 static void randomkeyCommand(redisClient *c);
 static void keysCommand(redisClient *c);
@@ -201,6 +203,8 @@ static struct redisCommand cmdTable[] = {
     {"scard",scardCommand,2,REDIS_CMD_INLINE},
     {"sinter",sinterCommand,-2,REDIS_CMD_INLINE},
     {"smembers",sinterCommand,2,REDIS_CMD_INLINE},
+    {"incrby",incrbyCommand,3,REDIS_CMD_INLINE},
+    {"decrby",decrbyCommand,3,REDIS_CMD_INLINE},
     {"randomkey",randomkeyCommand,1,REDIS_CMD_INLINE},
     {"select",selectCommand,2,REDIS_CMD_INLINE},
     {"move",moveCommand,3,REDIS_CMD_INLINE},
@@ -1445,6 +1449,16 @@ static void incrCommand(redisClient *c) {
 
 static void decrCommand(redisClient *c) {
     return incrDecrCommand(c,-1);
+}
+
+static void incrbyCommand(redisClient *c) {
+    int incr = atoi(c->argv[2]);
+    return incrDecrCommand(c,incr);
+}
+
+static void decrbyCommand(redisClient *c) {
+    int incr = atoi(c->argv[2]);
+    return incrDecrCommand(c,-incr);
 }
 
 static void selectCommand(redisClient *c) {
