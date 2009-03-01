@@ -168,6 +168,7 @@ int anetTcpServer(char *err, int port, char *bindaddr)
         close(s);
         return ANET_ERR;
     }
+    memset(&sa,0,sizeof(sa));
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
     sa.sin_addr.s_addr = htonl(INADDR_ANY);
