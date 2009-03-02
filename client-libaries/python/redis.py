@@ -146,9 +146,9 @@ class Redis(object):
         1
         >>> r.incr('a')
         2
+        >>> r.incr('a', 2)
+        4
         >>>
-        
-        Incrby is not yet implemented.
         """
         self.connect()
         if amount == 1:
@@ -160,15 +160,18 @@ class Redis(object):
     def decr(self, name, amount=1):
         """
         >>> r = Redis()
-        >>> r.delete('a')
+        >>> if r.get('a'):
+        ...     r.delete('a')
+        ... else:
+        ...     print 1
         1
         >>> r.decr('a')
         -1
         >>> r.decr('a')
         -2
-        >>>
-        
-        Decrby is not yet implemented.
+        >>> r.decr('a', 5)
+        -7
+        >>> 
         """
         self.connect()
         if amount == 1:
@@ -401,8 +404,7 @@ class Redis(object):
     def lindex(self, name, index):
         """
         >>> r = Redis()
-        >>> r.delete('l')
-        1
+        >>> res = r.delete('l')
         >>> r.lindex('l', 0)
         >>> r.push('l', 'aaa')
         'OK'
@@ -487,8 +489,7 @@ class Redis(object):
     def sadd(self, name, value):
         """
         >>> r = Redis()
-        >>> r.delete('s')
-        1
+        >>> res = r.delete('s')
         >>> r.sadd('s', 'a')
         1
         >>> r.sadd('s', 'b')
@@ -561,12 +562,9 @@ class Redis(object):
     def sinter(self, *args):
         """
         >>> r = Redis()
-        >>> r.delete('s1')
-        1
-        >>> r.delete('s2')
-        1
-        >>> r.delete('s3')
-        1
+        >>> res = r.delete('s1')
+        >>> res = r.delete('s2')
+        >>> res = r.delete('s3')
         >>> r.sadd('s1', 'a')
         1
         >>> r.sadd('s2', 'a')
@@ -662,7 +660,10 @@ class Redis(object):
         'OK'
         >>> r.select(1)
         'OK'
-        >>> r.delete('a')
+        >>> if r.get('a'):
+        ...     r.delete('a')
+        ... else:
+        ...     print 1
         1
         >>> r.select(0)
         'OK'
@@ -720,10 +721,11 @@ class Redis(object):
         data = self._read().strip()
         if data == 'nil':
             return
+        elif data[0] == '-':
+            self._check_for_error(data)
         try:
             l = int(data)
         except (TypeError, ValueError):
-            self._check_for_error(data)
             raise ResponseError("Cannot parse response '%s' as data length." % data)
         buf = []
         while l > 0:
