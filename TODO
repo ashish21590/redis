@@ -1,5 +1,3 @@
 BETA 4 TODO
 - sunion ssub
 - write integers in a special way on disk (and on memory?)
-- setnx, sadd, srem, should return 0, 1, -1
-- protocol doc a bit more clear

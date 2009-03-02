@@ -1376,7 +1376,7 @@ static void getCommand(redisClient *c) {
         robj *o = dictGetEntryVal(de);
         
         if (o->type != REDIS_STRING) {
-            char *err = "GET against key not holding a string value";
+            char *err = "-ERR GET against key not holding a string value";
             addReplySds(c,
                 sdscatprintf(sdsempty(),"%d\r\n%s\r\n",-((int)strlen(err)),err));
         } else {
@@ -1737,7 +1737,7 @@ static void lindexCommand(redisClient *c) {
         robj *o = dictGetEntryVal(de);
         
         if (o->type != REDIS_LIST) {
-            char *err = "LINDEX against key not holding a list value";
+            char *err = "-ERR LINDEX against key not holding a list value";
             addReplySds(c,
                 sdscatprintf(sdsempty(),"%d\r\n%s\r\n",-((int)strlen(err)),err));
         } else {
@@ -1799,7 +1799,7 @@ static void popGenericCommand(redisClient *c, int where) {
         robj *o = dictGetEntryVal(de);
         
         if (o->type != REDIS_LIST) {
-            char *err = "POP against key not holding a list value";
+            char *err = "-ERR POP against key not holding a list value";
             addReplySds(c,
                 sdscatprintf(sdsempty(),"%d\r\n%s\r\n",-((int)strlen(err)),err));
         } else {
@@ -1845,7 +1845,7 @@ static void lrangeCommand(redisClient *c) {
         robj *o = dictGetEntryVal(de);
         
         if (o->type != REDIS_LIST) {
-            char *err = "LRANGE against key not holding a list value";
+            char *err = "-ERR LRANGE against key not holding a list value";
             addReplySds(c,
                 sdscatprintf(sdsempty(),"%d\r\n%s\r\n",-((int)strlen(err)),err));
         } else {
@@ -2060,7 +2060,7 @@ static void sinterCommand(redisClient *c) {
         setobj = dictGetEntryVal(de);
         if (setobj->type != REDIS_SET) {
             free(dv);
-            char *err = "LINTER against key not holding a set value";
+            char *err = "-ERR LINTER against key not holding a set value";
             addReplySds(c, sdscatprintf(
                 sdsempty(),"%d\r\n%s\r\n",-((int)strlen(err)),err));
             return;
