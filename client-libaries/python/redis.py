@@ -7,7 +7,7 @@
 __author__ = "Ludovico Magnocavallo <ludo\x40qix\x2eit>"
 __copyright__ = "Copyright 2009, Ludovico Magnocavallo"
 __license__ = "MIT"
-__version__ = "0.4"
+__version__ = "0.5"
 __revision__ = "$LastChangedRevision$"[22:-2]
 __date__ = "$LastChangedDate$"[18:-2]
 
@@ -580,7 +580,7 @@ class Redis(object):
         ...     r.sinter('l')
         ... except ResponseError, e:
         ...     print e
-        ('LINTER against key not holding a set value', 42)
+        LINTER against key not holding a set value
         >>> r.sinter('s1', 's2', 's3')
         []
         >>> r.sinter('s1', 's2')
@@ -614,7 +614,7 @@ class Redis(object):
         ...     r.smembers('l')
         ... except ResponseError, e:
         ...     print e
-        ('LINTER against key not holding a set value', 42)
+        LINTER against key not holding a set value
         >>> r.smembers('s')
         ['a', 'b']
         >>> 
@@ -766,11 +766,11 @@ class Redis(object):
         if data.startswith('-ERR '):
             raise ResponseError(data[5:])
         try:
-            error_code = int(data[1:])
+            error_len = int(data[1:])
         except (TypeError, ValueError):
             raise ResponseError("Unknown error format '%s'." % data)
-        error_message = self._read().strip()
-        raise ResponseError(error_message, error_code)
+        error_message = self._read().strip()[5:]
+        raise ResponseError(error_message)
         
     def disconnect(self):
         if isinstance(self._sock, socket.socket):
