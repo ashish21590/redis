@@ -1,3 +1,5 @@
+02 Mar 2009 - New config options, random fixes
+01 Mar 2009 - Behavior / protocol of some command changed. Libs updated as well
 27 Feb 2009 - Documentation updated accordingly, all docs are now HTMLized
 27 Feb 2009 - unlink the temp file when DB dump fails due to short write
 27 Feb 2009 - Fix for RANDOMKEY, now returns a value, SINTER
