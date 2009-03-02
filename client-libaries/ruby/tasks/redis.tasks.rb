@@ -41,20 +41,23 @@ namespace :redis do
     RedisRunner.start
   end
 
-  desc "Attach to RabbitMQ dtach socket"
+  desc "Attach to Redis dtach socket"
   task :attach do
     RedisRunner.attach
   end
   
   task :make do
+    sh "cd #{RedisRunner.redisdir} && make clean"
     sh "cd #{RedisRunner.redisdir} && make"
   end  
 
   desc "Download package"
   task :download do
     unless File.exists?(RedisRunner.redisdir)
-        system "curl http://redis.googlecode.com/files/redis-beta-1.tar.gz -O &&
-                tar xvzf redis-beta-1.tar.gz"
+      system "svn checkout http://redis.googlecode.com/svn/trunk redis"
+    end
+    if File.exists?("#{RedisRunner.redisdir}/.svn")
+      system "svn up"
     end  
   end
     
