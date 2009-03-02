@@ -7,7 +7,7 @@
 __author__ = "Ludovico Magnocavallo <ludo\x40qix\x2eit>"
 __copyright__ = "Copyright 2009, Ludovico Magnocavallo"
 __license__ = "MIT"
-__version__ = "0.3"
+__version__ = "0.4"
 __revision__ = "$LastChangedRevision$"[22:-2]
 __date__ = "$LastChangedDate$"[18:-2]
 
