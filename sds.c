@@ -155,7 +155,6 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
     char *buf, *t;
     size_t buflen = 32;
 
-    va_start(ap, fmt);
     while(1) {
         buf = malloc(buflen);
 #ifdef SDS_ABORT_ON_OOM
@@ -164,7 +163,9 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
         if (buf == NULL) return NULL;
 #endif
         buf[buflen-2] = '\0';
+        va_start(ap, fmt);
         vsnprintf(buf, buflen, fmt, ap);
+        va_end(ap);
         if (buf[buflen-2] != '\0') {
             free(buf);
             buflen *= 2;
@@ -172,7 +173,6 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
         }
         break;
     }
-    va_end(ap);
     t = sdscat(s, buf);
     free(buf);
     return t;
