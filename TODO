@@ -1,3 +1,7 @@
-BETA 4 TODO
+BETA 5 TODO
 - sunion ssub
 - write integers in a special way on disk (and on memory?)
+- Doc: example of a twitter-like site design using Redis
+- network layer stresser in test
+- benchmark
+- check for server.dirty++ everything

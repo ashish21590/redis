@@ -310,7 +310,7 @@ proc main {server port} {
     test {LPOP against non list value} {
         redis_set $fd notalist foo
         redis_lpop $fd notalist
-    } {*ERROR*POP against*}
+    } {*ERROR*against*}
 
     test {Mass LPUSH/LPOP} {
         set sum 0
