@@ -1,5 +1,4 @@
-# TODO
-# test pipelining
+# TODO # test pipelining
 
 set ::passed 0
 set ::failed 0
@@ -415,6 +414,14 @@ proc main {server port} {
         redis_sadd $fd set3 2000
         lsort [redis_sinter $fd set1 set2 set3]
     } {995 999}
+    
+    test {SAVE - make sure there are all the types as values} {
+        redis_lpush $fd mysavelist hello
+        redis_lpush $fd mysavelist world
+        redis_set $fd myemptykey {}
+        redis_set $fd mynormalkey {blablablba}
+        redis_save $fd
+    } {+OK}
 
     # Leave the user with a clean DB before to exit
     test {DEL all keys again (DB 0)} {
@@ -638,6 +645,16 @@ proc redis_sinter {fd args} {
 proc redis_smembers {fd key} {
     redis_writenl $fd "smembers $key\r\n"
     redis_multi_bulk_read $fd
+}
+
+proc redis_echo {fd str} {
+    redis_writenl $fd "echo [string length $str]\r\n$str\r\n"
+    redis_writenl $fd "smembers $key\r\n"
+}
+
+proc redis_save {fd} {
+    redis_writenl $fd "save\r\n"
+    redis_read_retcode $fd
 }
 
 if {[llength $argv] == 0} {

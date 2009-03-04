@@ -1118,14 +1118,14 @@ static int saveDb(char *filename) {
 
         /* Iterate this DB writing every entry */
         while((de = dictNext(di)) != NULL) {
-            sds key = dictGetEntryKey(de);
+            robj *key = dictGetEntryKey(de);
             robj *o = dictGetEntryVal(de);
 
             type = o->type;
-            len = htonl(sdslen(key));
+            len = htonl(sdslen(key->ptr));
             if (fwrite(&type,1,1,fp) == 0) goto werr;
             if (fwrite(&len,4,1,fp) == 0) goto werr;
-            if (fwrite(key,sdslen(key),1,fp) == 0) goto werr;
+            if (fwrite(key->ptr,sdslen(key->ptr),1,fp) == 0) goto werr;
             if (type == REDIS_STRING) {
                 /* Save a string value */
                 sds sval = o->ptr;
@@ -1312,7 +1312,7 @@ static int loadDb(char *filename) {
             assert(0 != 0);
         }
         /* Add the new object in the hash table */
-        retval = dictAdd(d,sdsnewlen(key,klen),o);
+        retval = dictAdd(d,createStringObject(key,klen),o);
         if (retval == DICT_ERR) {
             redisLog(REDIS_WARNING,"Loading DB, duplicated key found! Unrecoverable error, exiting now.");
             exit(1);
