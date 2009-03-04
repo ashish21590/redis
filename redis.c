@@ -544,7 +544,7 @@ static void createSharedObjects(void) {
         "-ERR Operation against a key holding the wrong kind of value\r\n"));
     shared.wrongtypeerrbulk = createObject(REDIS_STRING,sdscatprintf(sdsempty(),"%d\r\n%s",-sdslen(shared.wrongtypeerr->ptr)+2,shared.wrongtypeerr->ptr));
     shared.nokeyerr = createObject(REDIS_STRING,sdsnew(
-        "-ERR no suck key\r\n"));
+        "-ERR no such key\r\n"));
     shared.nokeyerrbulk = createObject(REDIS_STRING,sdscatprintf(sdsempty(),"%d\r\n%s",-sdslen(shared.nokeyerr->ptr)+2,shared.nokeyerr->ptr));
     shared.space = createObject(REDIS_STRING,sdsnew(" "));
 }
