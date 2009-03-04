@@ -301,7 +301,7 @@ class Redis(object):
         ...     r.push('a', 'a')
         ... except ResponseError, e:
         ...     print e
-        push against existing key not holding a list
+        Operation against a key holding the wrong kind of value
         >>> 
         """
         self.connect()
@@ -580,7 +580,7 @@ class Redis(object):
         ...     r.sinter('l')
         ... except ResponseError, e:
         ...     print e
-        LINTER against key not holding a set value
+        Operation against a key holding the wrong kind of value
         >>> r.sinter('s1', 's2', 's3')
         []
         >>> r.sinter('s1', 's2')
@@ -614,7 +614,7 @@ class Redis(object):
         ...     r.smembers('l')
         ... except ResponseError, e:
         ...     print e
-        LINTER against key not holding a set value
+        Operation against a key holding the wrong kind of value
         >>> r.smembers('s')
         ['a', 'b']
         >>> 
@@ -763,8 +763,8 @@ class Redis(object):
     def _check_for_error(self, data):
         if not data or data[0] != '-':
             return
-        if data.startswith('-ERR '):
-            raise ResponseError(data[5:])
+        if data.startswith('-ERR'):
+            raise ResponseError(data[4:].strip())
         try:
             error_len = int(data[1:])
         except (TypeError, ValueError):
