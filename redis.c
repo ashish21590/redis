@@ -15,6 +15,8 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "ae.h"     /* Event driven programming library */
 #include "sds.h"    /* Dynamic safe strings */
@@ -34,6 +36,7 @@
 #define REDIS_MAX_ARGS          16
 #define REDIS_DEFAULT_DBNUM     16
 #define REDIS_CONFIGLINE_MAX    1024
+#define REDIS_MAX_SYNC_TIME     60      /* Slave can't take more to sync */
 
 /* Hash table parameters */
 #define REDIS_HT_MINFILL        10      /* Minimal hash table fill 10% */
@@ -50,6 +53,11 @@
 #define REDIS_HASH 3
 #define REDIS_SELECTDB 254
 #define REDIS_EOF 255
+
+/* Client flags */
+#define REDIS_CLOSE 1       /* This client connection should be closed ASAP */
+#define REDIS_SLAVE 2       /* This client is a slave server */
+#define REDIS_MASTER 3      /* This client is a master server */
 
 /* List related stuff */
 #define REDIS_HEAD 0
@@ -84,6 +92,7 @@ typedef struct redisClient {
     list *reply;
     int sentlen;
     time_t lastinteraction; /* time of the last interaction, used for timeout */
+    int flags; /* REDIS_CLOSE | REDIS_SLAVE */
 } redisClient;
 
 struct saveparam {
@@ -98,6 +107,7 @@ struct redisServer {
     dict **dict;
     long long dirty;            /* changes to DB from the last save */
     list *clients;
+    list *slaves;
     char neterr[ANET_ERR_LEN];
     aeEventLoop *el;
     int verbosity;
@@ -177,6 +187,7 @@ static void sremCommand(redisClient *c);
 static void sismemberCommand(redisClient *c);
 static void scardCommand(redisClient *c);
 static void sinterCommand(redisClient *c);
+static void syncCommand(redisClient *c);
 
 /*================================= Globals ================================= */
 
@@ -221,6 +232,7 @@ static struct redisCommand cmdTable[] = {
     {"shutdown",shutdownCommand,1,REDIS_CMD_INLINE},
     {"lastsave",lastsaveCommand,1,REDIS_CMD_INLINE},
     {"type",typeCommand,2,REDIS_CMD_INLINE},
+    {"sync",syncCommand,1,REDIS_CMD_INLINE},
     {"",NULL,0,0}
 };
 
@@ -450,7 +462,8 @@ void closeTimedoutClients(void) {
     if (!li) return;
     while ((ln = listNextElement(li)) != NULL) {
         c = listNodeValue(ln);
-        if (now - c->lastinteraction > server.maxidletime) {
+        if (!(c->flags & REDIS_SLAVE) &&    /* no timeout for slaves */
+             (now - c->lastinteraction > server.maxidletime)) {
             redisLog(REDIS_DEBUG,"Closing idle client");
             freeClient(c);
         }
@@ -482,7 +495,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Show information about connected clients */
-    if (!(loops % 5)) redisLog(REDIS_DEBUG,"%d clients connected",listLength(server.clients));
+    if (!(loops % 5)) redisLog(REDIS_DEBUG,"%d clients connected (%d slaves)",listLength(server.clients),listLength(server.slaves));
 
     /* Close connections of timedout clients */
     if (!(loops % 10))
@@ -585,11 +598,12 @@ static void initServer() {
     signal(SIGPIPE, SIG_IGN);
 
     server.clients = listCreate();
+    server.slaves = listCreate();
     server.objfreelist = listCreate();
     createSharedObjects();
     server.el = aeCreateEventLoop();
     server.dict = malloc(sizeof(dict*)*server.dbnum);
-    if (!server.dict || !server.clients || !server.el || !server.objfreelist)
+    if (!server.dict || !server.clients || !server.slaves || !server.el || !server.objfreelist)
         oom("server initialization"); /* Fatal OOM */
     server.fd = anetTcpServer(server.neterr, server.port, server.bindaddr);
     if (server.fd == -1) {
@@ -728,6 +742,11 @@ static void freeClient(redisClient *c) {
     ln = listSearchKey(server.clients,c);
     assert(ln != NULL);
     listDelNode(server.clients,ln);
+    if (c->flags & REDIS_SLAVE) {
+        ln = listSearchKey(server.slaves,c);
+        assert(ln != NULL);
+        listDelNode(server.slaves,ln);
+    }
     free(c);
 }
 
@@ -841,6 +860,10 @@ static int processCommand(redisClient *c) {
     }
     /* Exec the command */
     cmd->proc(c);
+    if (c->flags & REDIS_CLOSE) {
+        freeClient(c);
+        return 0;
+    }
     resetClient(c);
     return 1;
 }
@@ -958,6 +981,7 @@ static int createClient(int fd) {
     c->argc = 0;
     c->bulklen = -1;
     c->sentlen = 0;
+    c->flags = 0;
     c->lastinteraction = time(NULL);
     if ((c->reply = listCreate()) == NULL) oom("listCreate");
     listSetFreeMethod(c->reply,decrRefCount);
@@ -2095,6 +2119,79 @@ static void sinterCommand(redisClient *c) {
     lenobj->ptr = sdscatprintf(sdsempty(),"%d\r\n",cardinality);
     dictReleaseIterator(di);
     free(dv);
+}
+
+/* =============================== Replication  ============================= */
+
+/* Send the whole output buffer syncronously to the slave. This a general operation in theory, but it is actually useful only for replication. */
+static int flushClientOutput(redisClient *c) {
+    int retval;
+    time_t start = time(NULL);
+
+    while(listLength(c->reply)) {
+        if (time(NULL)-start > 5) return REDIS_ERR; /* 5 seconds timeout */
+        retval = aeWait(c->fd,AE_WRITABLE,1000);
+        if (retval == -1) {
+            return REDIS_ERR;
+        } else if (retval & AE_WRITABLE) {
+            sendReplyToClient(NULL, c->fd, c, AE_WRITABLE);
+        }
+    }
+    return REDIS_OK;
+}
+
+static int syncWrite(int fd, void *ptr, ssize_t size) {
+    ssize_t nwritten, ret = size;
+
+    while(size) {
+        if (aeWait(fd,AE_WRITABLE,1000) & AE_WRITABLE) {
+            nwritten = write(fd,ptr,size);
+            if (nwritten == -1) return -1;
+            ptr += nwritten;
+            size -= nwritten;
+        }
+    }
+    return ret;
+}
+
+static void syncCommand(redisClient *c) {
+    struct stat sb;
+    int fd = -1, len;
+    time_t start = time(NULL);
+    char sizebuf[32];
+
+    redisLog(REDIS_NOTICE,"Slave ask for syncronization");
+    if (flushClientOutput(c) == REDIS_ERR || saveDb("dump.rdb") != REDIS_OK)
+        goto closeconn;
+
+    fd = open("dump.rdb", O_RDONLY);
+    if (fd == -1 || fstat(fd,&sb) == -1) goto closeconn;
+    len = sb.st_size;
+
+    snprintf(sizebuf,32,"%d\r\n",len);
+    if (syncWrite(c->fd,sizebuf,strlen(sizebuf)) == -1) goto closeconn;
+    while(len) {
+        char buf[1024];
+        int nread;
+
+        if (time(NULL)-start > REDIS_MAX_SYNC_TIME) goto closeconn;
+        nread = read(fd,buf,1024);
+        if (nread == -1) goto closeconn;
+        len -= nread;
+        if (syncWrite(c->fd,buf,nread) == -1) goto closeconn;
+    }
+    if (syncWrite(c->fd,"\r\n",2) == -1) goto closeconn;
+    close(fd);
+    c->flags |= REDIS_SLAVE;
+    if (!listAddNodeTail(server.slaves,c)) oom("listAddNodeTail");
+    redisLog(REDIS_NOTICE,"Syncronization with slave succeeded");
+    return;
+
+closeconn:
+    if (fd != -1) close(fd);
+    c->flags |= REDIS_CLOSE;
+    redisLog(REDIS_WARNING,"Syncronization with slave failed");
+    return;
 }
 
 /* =================================== Main! ================================ */

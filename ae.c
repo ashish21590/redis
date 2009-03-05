@@ -310,6 +310,32 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
     return processed; /* return the number of processed file/time events */
 }
 
+/* Wait for millseconds until the given file descriptor becomes
+ * writable/readable/exception */
+int aeWait(int fd, int mask, long long milliseconds) {
+    struct timeval tv;
+    fd_set rfds, wfds, efds;
+    int retmask = 0, retval;
+
+    tv.tv_sec = milliseconds/1000;
+    tv.tv_usec = (milliseconds%1000)*1000;
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&efds);
+
+    if (mask & AE_READABLE) FD_SET(fd,&rfds);
+    if (mask & AE_WRITABLE) FD_SET(fd,&wfds);
+    if (mask & AE_EXCEPTION) FD_SET(fd,&efds);
+    if ((retval = select(fd+1, &rfds, &wfds, &efds, &tv)) > 0) {
+        if (FD_ISSET(fd,&rfds)) retmask |= AE_READABLE;
+        if (FD_ISSET(fd,&wfds)) retmask |= AE_WRITABLE;
+        if (FD_ISSET(fd,&efds)) retmask |= AE_EXCEPTION;
+        return retmask;
+    } else {
+        return retval;
+    }
+}
+
 void aeMain(aeEventLoop *eventLoop)
 {
     eventLoop->stop = 0;
