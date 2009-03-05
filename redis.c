@@ -36,15 +36,16 @@
 #define REDIS_MAX_ARGS          16
 #define REDIS_DEFAULT_DBNUM     16
 #define REDIS_CONFIGLINE_MAX    1024
+#define REDIS_OBJFREELIST_MAX   10000   /* Max number of objects to cache */
 #define REDIS_MAX_SYNC_TIME     60      /* Slave can't take more to sync */
 
 /* Hash table parameters */
 #define REDIS_HT_MINFILL        10      /* Minimal hash table fill 10% */
 #define REDIS_HT_MINSLOTS       16384   /* Never resize the HT under this */
 
-/* Command types */
+/* Command flags */
 #define REDIS_CMD_BULK          1
-#define REDIS_CMD_INLINE        0
+#define REDIS_CMD_INLINE        2
 
 /* Object types */
 #define REDIS_STRING 0
@@ -85,6 +86,7 @@ typedef struct redisObject {
 typedef struct redisClient {
     int fd;
     dict *dict;
+    int dictid;
     sds querybuf;
     robj *argv[REDIS_MAX_ARGS];
     int argc;
@@ -93,6 +95,7 @@ typedef struct redisClient {
     int sentlen;
     time_t lastinteraction; /* time of the last interaction, used for timeout */
     int flags; /* REDIS_CLOSE | REDIS_SLAVE */
+    int slaveseldb; /* slave selected db, if this client is a slave */
 } redisClient;
 
 struct saveparam {
@@ -128,11 +131,15 @@ struct redisCommand {
     char *name;
     redisCommandProc *proc;
     int arity;
-    int type;
+    int flags;
 };
 
 struct sharedObjectsStruct {
-    robj *crlf, *ok, *err, *zerobulk, *nil, *zero, *one, *minus1, *minus2, *minus3, *minus4, *pong, *wrongtypeerr, *nokeyerr, *wrongtypeerrbulk, *nokeyerrbulk, *space;
+    robj *crlf, *ok, *err, *zerobulk, *nil, *zero, *one, *pong, *space,
+    *minus1, *minus2, *minus3, *minus4,
+    *wrongtypeerr, *nokeyerr, *wrongtypeerrbulk, *nokeyerrbulk,
+    *select0, *select1, *select2, *select3, *select4,
+    *select5, *select6, *select7, *select8, *select9;
 } shared;
 
 /*================================ Prototypes =============================== */
@@ -149,6 +156,7 @@ static void addReplySds(redisClient *c, sds s);
 static void incrRefCount(robj *o);
 static int saveDbBackground(char *filename);
 static robj *createStringObject(char *ptr, size_t len);
+static void replicationFeedSlaves(struct redisCommand *cmd, int dictid, robj **argv, int argc);
 
 static void pingCommand(redisClient *c);
 static void echoCommand(redisClient *c);
@@ -560,6 +568,16 @@ static void createSharedObjects(void) {
         "-ERR no such key\r\n"));
     shared.nokeyerrbulk = createObject(REDIS_STRING,sdscatprintf(sdsempty(),"%d\r\n%s",-sdslen(shared.nokeyerr->ptr)+2,shared.nokeyerr->ptr));
     shared.space = createObject(REDIS_STRING,sdsnew(" "));
+    shared.select0 = createStringObject("select 0\r\n",10);
+    shared.select1 = createStringObject("select 1\r\n",10);
+    shared.select2 = createStringObject("select 2\r\n",10);
+    shared.select3 = createStringObject("select 3\r\n",10);
+    shared.select4 = createStringObject("select 4\r\n",10);
+    shared.select5 = createStringObject("select 5\r\n",10);
+    shared.select6 = createStringObject("select 6\r\n",10);
+    shared.select7 = createStringObject("select 7\r\n",10);
+    shared.select8 = createStringObject("select 8\r\n",10);
+    shared.select9 = createStringObject("select 9\r\n",10);
 }
 
 static void appendServerSaveParams(time_t seconds, int changes) {
@@ -818,6 +836,7 @@ static void resetClient(redisClient *c) {
  * if 0 is returned the client was destroied (i.e. after QUIT). */
 static int processCommand(redisClient *c) {
     struct redisCommand *cmd;
+    long long dirty;
 
     sdstolower(c->argv[0]->ptr);
     /* The QUIT command is handled as a special case. Normal command
@@ -836,7 +855,7 @@ static int processCommand(redisClient *c) {
         addReplySds(c,sdsnew("-ERR wrong number of arguments\r\n"));
         resetClient(c);
         return 1;
-    } else if (cmd->type == REDIS_CMD_BULK && c->bulklen == -1) {
+    } else if (cmd->flags & REDIS_CMD_BULK && c->bulklen == -1) {
         int bulklen = atoi(c->argv[c->argc-1]->ptr);
 
         decrRefCount(c->argv[c->argc-1]);
@@ -859,13 +878,67 @@ static int processCommand(redisClient *c) {
         }
     }
     /* Exec the command */
+    dirty = server.dirty;
     cmd->proc(c);
+    if (server.dirty-dirty != 0 && listLength(server.slaves))
+        replicationFeedSlaves(cmd,c->dictid,c->argv,c->argc);
+
+    /* Prepare the client for the next command */
     if (c->flags & REDIS_CLOSE) {
         freeClient(c);
         return 0;
     }
     resetClient(c);
     return 1;
+}
+
+static void replicationFeedSlaves(struct redisCommand *cmd, int dictid, robj **argv, int argc) {
+    listNode *ln = server.slaves->head;
+    robj *outv[REDIS_MAX_ARGS*4]; /* enough room for args, spaces, newlines */
+    int outc = 0, j;
+    
+    for (j = 0; j < argc; j++) {
+        if (j != 0) outv[outc++] = shared.space;
+        if ((cmd->flags & REDIS_CMD_BULK) && j == argc-1) {
+            robj *lenobj;
+
+            lenobj = createObject(REDIS_STRING,
+                sdscatprintf(sdsempty(),"%d\r\n",sdslen(argv[j]->ptr)));
+            lenobj->refcount = 0;
+            outv[outc++] = lenobj;
+        }
+        outv[outc++] = argv[j];
+    }
+    outv[outc++] = shared.crlf;
+
+    while(ln) {
+        redisClient *slave = ln->value;
+        if (slave->slaveseldb != dictid) {
+            robj *selectcmd;
+
+            switch(dictid) {
+            case 0: selectcmd = shared.select0; break;
+            case 1: selectcmd = shared.select1; break;
+            case 2: selectcmd = shared.select2; break;
+            case 3: selectcmd = shared.select3; break;
+            case 4: selectcmd = shared.select4; break;
+            case 5: selectcmd = shared.select5; break;
+            case 6: selectcmd = shared.select6; break;
+            case 7: selectcmd = shared.select7; break;
+            case 8: selectcmd = shared.select8; break;
+            case 9: selectcmd = shared.select9; break;
+            default:
+                selectcmd = createObject(REDIS_STRING,
+                    sdscatprintf(sdsempty(),"select %d\r\n",dictid));
+                selectcmd->refcount = 0;
+                break;
+            }
+            addReply(slave,selectcmd);
+            slave->slaveseldb = dictid;
+        }
+        for (j = 0; j < outc; j++) addReply(slave,outv[j]);
+        ln = ln->next;
+    }
 }
 
 static void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -966,6 +1039,7 @@ static int selectDb(redisClient *c, int id) {
     if (id < 0 || id >= server.dbnum)
         return REDIS_ERR;
     c->dict = server.dict[id];
+    c->dictid = id;
     return REDIS_OK;
 }
 
@@ -1065,11 +1139,13 @@ static robj *createSetObject(void) {
     return createObject(REDIS_SET,d);
 }
 
+#if 0
 static robj *createHashObject(void) {
     dict *d = dictCreate(&hashDictType,NULL);
     if (!d) oom("dictCreate");
     return createObject(REDIS_SET,d);
 }
+#endif
 
 static void freeStringObject(robj *o) {
     sdsfree(o->ptr);
@@ -1101,7 +1177,8 @@ static void decrRefCount(void *obj) {
         case REDIS_HASH: freeHashObject(o); break;
         default: assert(0 != 0); break;
         }
-        if (!listAddNodeHead(server.objfreelist,o))
+        if (listLength(server.objfreelist) > REDIS_OBJFREELIST_MAX ||
+            !listAddNodeHead(server.objfreelist,o))
             free(o);
     }
 }
@@ -1655,15 +1732,18 @@ static void moveCommand(redisClient *c) {
     dictEntry *de;
     robj *o, *key;
     dict *src, *dst;
+    int srcid;
 
     /* Obtain source and target DB pointers */
     src = c->dict;
+    srcid = c->dictid;
     if (selectDb(c,atoi(c->argv[2]->ptr)) == REDIS_ERR) {
         addReply(c,shared.minus4);
         return;
     }
     dst = c->dict;
     c->dict = src;
+    c->dictid = srcid;
 
     /* If the user is moving using as target the same
      * DB as the source DB it is probably an error. */
@@ -2109,7 +2189,7 @@ static void sinterCommand(redisClient *c) {
         for (j = 1; j < c->argc-1; j++)
             if (dictFind(dv[j],dictGetEntryKey(de)) == NULL) break;
         if (j != c->argc-1)
-            continue; /* at least one set don't contain the member */
+            continue; /* at least one set does not contain the member */
         ele = dictGetEntryKey(de);
         addReplySds(c,sdscatprintf(sdsempty(),"%d\r\n",sdslen(ele->ptr)));
         addReply(c,ele);
@@ -2183,6 +2263,7 @@ static void syncCommand(redisClient *c) {
     if (syncWrite(c->fd,"\r\n",2) == -1) goto closeconn;
     close(fd);
     c->flags |= REDIS_SLAVE;
+    c->slaveseldb = 0;
     if (!listAddNodeTail(server.slaves,c)) oom("listAddNodeTail");
     redisLog(REDIS_NOTICE,"Syncronization with slave succeeded");
     return;
