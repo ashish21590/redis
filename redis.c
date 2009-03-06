@@ -687,7 +687,7 @@ static void loadServerConfig(char *filename) {
     }
     while(fgets(buf,REDIS_CONFIGLINE_MAX+1,fp) != NULL) {
         sds *argv;
-        int argc;
+        int argc, j;
 
         linenum++;
         line = sdsnew(buf);
@@ -740,7 +740,10 @@ static void loadServerConfig(char *filename) {
             FILE *fp;
 
             server.logfile = strdup(argv[1]);
-            if (!strcmp(server.logfile,"stdout")) server.logfile = NULL;
+            if (!strcmp(server.logfile,"stdout")) {
+                free(server.logfile);
+                server.logfile = NULL;
+            }
             if (server.logfile) {
                 /* Test if we are able to open the file. The server will not
                  * be able to abort just for this problem later... */
@@ -764,6 +767,9 @@ static void loadServerConfig(char *filename) {
         } else {
             err = "Bad directive or wrong number of arguments"; goto loaderr;
         }
+        for (j = 0; j < argc; j++)
+            sdsfree(argv[j]);
+        free(argv);
         sdsfree(line);
     }
     fclose(fp);
