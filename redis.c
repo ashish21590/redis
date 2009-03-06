@@ -826,10 +826,10 @@ static void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask)
         }
 
         if (c->flags & REDIS_MASTER) {
+            nwritten = objlen - c->sentlen;
+        } else {
             nwritten = write(fd, o->ptr+c->sentlen, objlen - c->sentlen);
             if (nwritten <= 0) break;
-        } else {
-            nwritten = objlen - c->sentlen;
         }
         c->sentlen += nwritten;
         totwritten += nwritten;
