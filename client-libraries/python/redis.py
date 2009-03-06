@@ -733,7 +733,7 @@ class Redis(object):
             l -= len(data)
             if len(data) > l:
                 # we got the ending crlf
-                data = data.strip()
+                data = data.rstrip()
             buf.append(data)
         if l == 0:
             # the data has a trailing crlf embedded, let's restore it
