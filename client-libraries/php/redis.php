@@ -5,8 +5,11 @@
  * Copyright 2009 Ludovico Magnocavallo
  * Released under the same license as Redis.
  *
+ * Version: 0.1
+ *
  * $Revision$
  * $Date$
+ *
  ******************************************************************************/
 
 
