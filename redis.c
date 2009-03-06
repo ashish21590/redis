@@ -58,7 +58,12 @@
 /* Client flags */
 #define REDIS_CLOSE 1       /* This client connection should be closed ASAP */
 #define REDIS_SLAVE 2       /* This client is a slave server */
-#define REDIS_MASTER 3      /* This client is a master server */
+#define REDIS_MASTER 4      /* This client is a master server */
+
+/* Server replication state */
+#define REDIS_REPL_NONE 0   /* No active replication */
+#define REDIS_REPL_CONNECT 1    /* Must connect to master */
+#define REDIS_REPL_CONNECTED 2  /* Connected to master */
 
 /* List related stuff */
 #define REDIS_HEAD 0
@@ -124,6 +129,12 @@ struct redisServer {
     int saveparamslen;
     char *logfile;
     char *bindaddr;
+    /* Replication related */
+    int isslave;
+    char *masterhost;
+    int masterport;
+    redisClient *master;
+    int replstate;
 };
 
 typedef void redisCommandProc(redisClient *c);
@@ -157,6 +168,7 @@ static void incrRefCount(robj *o);
 static int saveDbBackground(char *filename);
 static robj *createStringObject(char *ptr, size_t len);
 static void replicationFeedSlaves(struct redisCommand *cmd, int dictid, robj **argv, int argc);
+static int syncWithMaster(void);
 
 static void pingCommand(redisClient *c);
 static void echoCommand(redisClient *c);
@@ -541,6 +553,13 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
             }
          }
     }
+    /* Check if we should connect to a MASTER */
+    if (server.replstate == REDIS_REPL_CONNECT) {
+        redisLog(REDIS_NOTICE,"Connecting to MASTER...");
+        if (syncWithMaster() == REDIS_OK) {
+            redisLog(REDIS_NOTICE,"MASTER <-> SLAVE sync succeeded");
+        }
+    }
     return 1000;
 }
 
@@ -607,6 +626,12 @@ static void initServerConfig() {
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
     appendServerSaveParams(300,100);  /* save after 5 minutes and 100 changes */
     appendServerSaveParams(60,10000); /* save after 1 minute and 10000 changes */
+    /* Replication related */
+    server.isslave = 0;
+    server.masterhost = NULL;
+    server.masterport = 6379;
+    server.master = NULL;
+    server.replstate = REDIS_REPL_NONE;
 }
 
 static void initServer() {
@@ -631,13 +656,21 @@ static void initServer() {
     for (j = 0; j < server.dbnum; j++) {
         server.dict[j] = dictCreate(&hashDictType,NULL);
         if (!server.dict[j])
-            oom("server initialization"); /* Fatal OOM */
+            oom("dictCreate"); /* Fatal OOM */
     }
     server.cronloops = 0;
     server.bgsaveinprogress = 0;
     server.lastsave = time(NULL);
     server.dirty = 0;
     aeCreateTimeEvent(server.el, 1000, serverCron, NULL, NULL);
+}
+
+/* Empty the whole database */
+static void emptyDb() {
+    int j;
+
+    for (j = 0; j < server.dbnum; j++)
+        dictEmpty(server.dict[j]);
 }
 
 /* I agree, this is a very rudimental way to load a configuration...
@@ -724,6 +757,10 @@ static void loadServerConfig(char *filename) {
             if (server.dbnum < 1) {
                 err = "Invalid number of databases"; goto loaderr;
             }
+        } else if (!strcmp(argv[0],"slaveof") && argc == 3) {
+            server.masterhost = sdsnew(argv[1]);
+            server.masterport = atoi(argv[2]);
+            server.replstate = REDIS_REPL_CONNECT;
         } else {
             err = "Bad directive or wrong number of arguments"; goto loaderr;
         }
@@ -765,6 +802,10 @@ static void freeClient(redisClient *c) {
         assert(ln != NULL);
         listDelNode(server.slaves,ln);
     }
+    if (c->flags & REDIS_MASTER) {
+        server.master = NULL;
+        server.replstate = REDIS_REPL_CONNECT;
+    }
     free(c);
 }
 
@@ -784,8 +825,12 @@ static void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask)
             continue;
         }
 
-        nwritten = write(fd, o->ptr+c->sentlen, objlen - c->sentlen);
-        if (nwritten <= 0) break;
+        if (c->flags & REDIS_MASTER) {
+            nwritten = write(fd, o->ptr+c->sentlen, objlen - c->sentlen);
+            if (nwritten <= 0) break;
+        } else {
+            nwritten = objlen - c->sentlen;
+        }
         c->sentlen += nwritten;
         totwritten += nwritten;
         /* If we fully sent the object on head go to the next one */
@@ -1043,12 +1088,12 @@ static int selectDb(redisClient *c, int id) {
     return REDIS_OK;
 }
 
-static int createClient(int fd) {
+static redisClient *createClient(int fd) {
     redisClient *c = malloc(sizeof(*c));
 
     anetNonBlock(NULL,fd);
     anetTcpNoDelay(NULL,fd);
-    if (!c) return REDIS_ERR;
+    if (!c) return NULL;
     selectDb(c,0);
     c->fd = fd;
     c->querybuf = sdsempty();
@@ -1062,10 +1107,10 @@ static int createClient(int fd) {
     if (aeCreateFileEvent(server.el, c->fd, AE_READABLE,
         readQueryFromClient, c, NULL) == AE_ERR) {
         freeClient(c);
-        return REDIS_ERR;
+        return NULL;
     }
     if (!listAddNodeTail(server.clients,c)) oom("listAddNodeTail");
-    return REDIS_OK;
+    return c;
 }
 
 static void addReply(redisClient *c, robj *obj) {
@@ -1095,7 +1140,7 @@ static void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
     }
     redisLog(REDIS_DEBUG,"Accepted %s:%d", cip, cport);
-    if (createClient(cfd) == REDIS_ERR) {
+    if (createClient(cfd) == NULL) {
         redisLog(REDIS_WARNING,"Error allocating resoures for the client");
         close(cfd); /* May be already closed, just ingore errors */
         return;
@@ -2220,9 +2265,11 @@ static int flushClientOutput(redisClient *c) {
     return REDIS_OK;
 }
 
-static int syncWrite(int fd, void *ptr, ssize_t size) {
+static int syncWrite(int fd, void *ptr, ssize_t size, int timeout) {
     ssize_t nwritten, ret = size;
+    time_t start = time(NULL);
 
+    timeout++;
     while(size) {
         if (aeWait(fd,AE_WRITABLE,1000) & AE_WRITABLE) {
             nwritten = write(fd,ptr,size);
@@ -2230,8 +2277,54 @@ static int syncWrite(int fd, void *ptr, ssize_t size) {
             ptr += nwritten;
             size -= nwritten;
         }
+        if ((time(NULL)-start) > timeout) {
+            errno = ETIMEDOUT;
+            return -1;
+        }
     }
     return ret;
+}
+
+static int syncRead(int fd, void *ptr, ssize_t size, int timeout) {
+    ssize_t nread, totread = 0;
+    time_t start = time(NULL);
+
+    timeout++;
+    while(size) {
+        if (aeWait(fd,AE_READABLE,1000) & AE_READABLE) {
+            nread = read(fd,ptr,size);
+            if (nread == -1) return -1;
+            ptr += nread;
+            size -= nread;
+            totread += nread;
+        }
+        if ((time(NULL)-start) > timeout) {
+            errno = ETIMEDOUT;
+            return -1;
+        }
+    }
+    return totread;
+}
+
+static int syncReadLine(int fd, char *ptr, ssize_t size, int timeout) {
+    ssize_t nread = 0;
+
+    size--;
+    while(size) {
+        char c;
+
+        if (syncRead(fd,&c,1,timeout) == -1) return -1;
+        if (c == '\n') {
+            *ptr = '\0';
+            if (nread && *(ptr-1) == '\r') *(ptr-1) = '\0';
+            return nread;
+        } else {
+            *ptr++ = c;
+            *ptr = '\0';
+            nread++;
+        }
+    }
+    return nread;
 }
 
 static void syncCommand(redisClient *c) {
@@ -2249,7 +2342,7 @@ static void syncCommand(redisClient *c) {
     len = sb.st_size;
 
     snprintf(sizebuf,32,"%d\r\n",len);
-    if (syncWrite(c->fd,sizebuf,strlen(sizebuf)) == -1) goto closeconn;
+    if (syncWrite(c->fd,sizebuf,strlen(sizebuf),5) == -1) goto closeconn;
     while(len) {
         char buf[1024];
         int nread;
@@ -2258,9 +2351,9 @@ static void syncCommand(redisClient *c) {
         nread = read(fd,buf,1024);
         if (nread == -1) goto closeconn;
         len -= nread;
-        if (syncWrite(c->fd,buf,nread) == -1) goto closeconn;
+        if (syncWrite(c->fd,buf,nread,5) == -1) goto closeconn;
     }
-    if (syncWrite(c->fd,"\r\n",2) == -1) goto closeconn;
+    if (syncWrite(c->fd,"\r\n",2,5) == -1) goto closeconn;
     close(fd);
     c->flags |= REDIS_SLAVE;
     c->slaveseldb = 0;
@@ -2273,6 +2366,80 @@ closeconn:
     c->flags |= REDIS_CLOSE;
     redisLog(REDIS_WARNING,"Syncronization with slave failed");
     return;
+}
+
+static int syncWithMaster(void) {
+    char buf[1024], tmpfile[256];
+    int dumpsize;
+    int fd = anetTcpConnect(NULL,server.masterhost,server.masterport);
+    int dfd;
+
+    if (fd == -1) {
+        redisLog(REDIS_WARNING,"Unable to connect to MASTER: %s",
+            strerror(errno));
+        return REDIS_ERR;
+    }
+    /* Issue the SYNC command */
+    if (syncWrite(fd,"SYNC \r\n",7,5) == -1) {
+        close(fd);
+        redisLog(REDIS_WARNING,"I/O error writing to MASTER: %s",
+            strerror(errno));
+        return REDIS_ERR;
+    }
+    /* Read the bulk write count */
+    if (syncReadLine(fd,buf,1024,5) == -1) {
+        close(fd);
+        redisLog(REDIS_WARNING,"I/O error reading bulk count from MASTER: %s",
+            strerror(errno));
+        return REDIS_ERR;
+    }
+    dumpsize = atoi(buf);
+    redisLog(REDIS_NOTICE,"Receiving %d bytes data dump from MASTER",dumpsize);
+    /* Read the bulk write data on a temp file */
+    snprintf(tmpfile,256,"temp-%d.%ld.rdb",(int)time(NULL),(long int)random());
+    dfd = open(tmpfile,O_CREAT|O_WRONLY,0644);
+    if (dfd == -1) {
+        close(fd);
+        redisLog(REDIS_WARNING,"Opening the temp file needed for MASTER <-> SLAVE synchronization: %s",strerror(errno));
+        return REDIS_ERR;
+    }
+    while(dumpsize) {
+        int nread, nwritten;
+
+        nread = read(fd,buf,(dumpsize < 1024)?dumpsize:1024);
+        if (nread == -1) {
+            redisLog(REDIS_WARNING,"I/O error trying to sync with MASTER: %s",
+                strerror(errno));
+            close(fd);
+            close(dfd);
+            return REDIS_ERR;
+        }
+        nwritten = write(dfd,buf,nread);
+        if (nwritten == -1) {
+            redisLog(REDIS_WARNING,"Write error writing to the DB dump file needed for MASTER <-> SLAVE synchrnonization: %s", strerror(errno));
+            close(fd);
+            close(dfd);
+            return REDIS_ERR;
+        }
+        dumpsize -= nread;
+    }
+    close(dfd);
+    if (rename(tmpfile,"dump.rdb") == -1) {
+        redisLog(REDIS_WARNING,"Failed trying to rename the temp DB into dump.rdb in MASTER <-> SLAVE synchronization: %s", strerror(errno));
+        unlink(tmpfile);
+        close(fd);
+        return REDIS_ERR;
+    }
+    emptyDb();
+    if (loadDb("dump.rdb") != REDIS_OK) {
+        redisLog(REDIS_WARNING,"Failed trying to load the MASTER synchronization DB from disk");
+        close(fd);
+        return REDIS_ERR;
+    }
+    server.master = createClient(fd);
+    server.master->flags |= REDIS_MASTER;
+    server.replstate = REDIS_REPL_CONNECTED;
+    return REDIS_OK;
 }
 
 /* =================================== Main! ================================ */

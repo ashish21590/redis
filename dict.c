@@ -419,6 +419,10 @@ static int _dictKeyIndex(dict *ht, const void *key)
     return h;
 }
 
+void dictEmpty(dict *ht) {
+    _dictClear(ht);
+}
+
 #define DICT_STATS_VECTLEN 50
 void dictPrintStats(dict *ht) {
     unsigned int i, slots = 0, chainlen, maxchainlen = 0;

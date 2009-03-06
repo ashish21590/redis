@@ -97,6 +97,7 @@ void dictReleaseIterator(dictIterator *iter);
 dictEntry *dictGetRandomKey(dict *ht);
 void dictPrintStats(dict *ht);
 unsigned int dictGenHashFunction(const unsigned char *buf, int len);
+void dictEmpty(dict *ht);
 
 /* Hash table types */
 extern dictType dictTypeHeapStringCopyKey;
