@@ -1,7 +1,8 @@
 BETA 6 TODO
+- benchmark
+- keys expire
 - sunion ssub
 - write integers in a special way on disk (and on memory?)
+- compact types for disk storing of short strings (no 4 bytes overhead!)
 - Doc: example of a twitter-like site design using Redis
 - network layer stresser in test
-- benchmark
-- check for server.dirty++ everything
