@@ -124,6 +124,109 @@ class Redis {
         return trim($this->_simple_response());
     }
     
+    function &push($name, $value, $tail=true) {
+        // default is to append the element to the list
+        $this->connect();
+        $this->_write(
+            ($tail ? 'RPUSH' : 'LPUSH') .
+            " $name " . strlen($value) . "\r\n$value\r\n"
+        );
+        return $this->_simple_response();
+    }
+    
+    function &ltrim($name, $start, $end) {
+        $this->connect();
+        $this->_write("LTRIM $name $start $end\r\n");
+        return $this->_simple_response();
+    }
+    
+    function &lindex($name, $index) {
+        $this->connect();
+        $this->_write("LINDEX $name $index\r\n");
+        return $this->_get_value();
+    }
+    
+    function &pop($name, $tail=true) {
+        $this->connect();
+        $this->_write(
+            ($tail ? 'RPOP' : 'LPOP') .
+            " $name\r\n"
+        );
+        return $this->_get_value();
+    }
+    
+    function &llen($name) {
+        $this->connect();
+        $this->_write("LLEN $name\r\n");
+        return $this->_numeric_response();
+    }
+    
+    function &lrange($name, $start, $end) {
+        $this->connect();
+        $this->_write("LRANGE $name $start $end\r\n");
+        return $this->_get_multi();
+    }
+    
+    function &lset($name, $value, $index) {
+        $this->connect();
+        $this->_write("LSET $name $index " . strlen($value) . "\r\n$value\r\n");
+        return $this->_simple_response();
+    }
+    
+    function &sadd($name, $value) {
+        $this->connect();
+        $this->_write("SADD $name " . strlen($value) . "\r\n$value\r\n");
+        return $this->_numeric_response();
+    }
+    
+    function &srem($name, $value) {
+        $this->connect();
+        $this->_write("SREM $name " . strlen($value) . "\r\n$value\r\n");
+        return $this->_numeric_response();
+    }
+    
+    function &sismember($name, $value) {
+        $this->connect();
+        $this->_write("SISMEMBER $name " . strlen($value) . "\r\n$value\r\n");
+        return $this->_numeric_response();
+    }
+    
+    function &sinter($sets) {
+        $this->connect();
+        $this->_write('SINTER ' . implode(' ', $sets) . "\r\n");
+        return $this->_get_multi();
+    }
+    
+    function &smembers($name) {
+        $this->connect();
+        $this->_write("SMEMBERS $name\r\n");
+        return $this->_get_multi();
+    }
+    
+    function &select_db($name) {
+        $this->connect();
+        $this->_write("SELECT $name\r\n");
+        return $this->_simple_response();
+    }
+    
+    function &move($name, $db) {
+        $this->connect();
+        $this->_write("MOVE $name $db\r\n");
+        return $this->_numeric_response();
+    }
+    
+    function &save($background=false) {
+        $this->connect();
+        $this->_write(($background ? "BGSAVE\r\n" : "SAVE\r\n"));
+        return $this->_simple_response();
+    }
+    
+    function &lastsave() {
+        $this->connect();
+        $this->_write("LASTSAVE\r\n");
+        return $this->_numeric_response();
+    }
+    
     function &_write($s) {
         while ($s) {
             $i = fwrite($this->_sock, $s);
@@ -165,6 +268,8 @@ class Redis {
                 $this->_check_for_error($s);
             return $i;
         }
+        if ($s == 'nil')
+            return null;
         trigger_error("Cannot parse '$s' as numeric response.");
     }
     
@@ -191,32 +296,19 @@ class Redis {
         return $buffer;
     }
     
+    function &_get_multi() {
+        $results = array();
+        $num =& $this->_numeric_response(false);
+        if ($num === false)
+            return $results;
+        while ($num) {
+            $results[] =& $this->_get_value();
+            $num -= 1;
+        }
+        return $results;
+    }
+    
 }   
 
-$r =& new Redis('localhost');
-$r->connect();
-echo $r->ping() . "\n";
-echo $r->do_echo('ECHO test') . "\n";
-echo "SET aaa " . $r->set('aaa', 'bbb') . "\n";
-echo "SETNX aaa " . $r->set('aaa', 'ccc', true) . "\n";
-echo "GET aaa " . $r->get('aaa') . "\n";
-echo "INCR aaa " . $r->incr('aaa') . "\n";
-echo "GET aaa " . $r->get('aaa') . "\n";
-echo "INCRBY aaa 3 " . $r->incr('aaa', 2) . "\n";
-echo "GET aaa " . $r->get('aaa') . "\n";
-echo "DECR aaa " . $r->decr('aaa') . "\n";
-echo "GET aaa " . $r->get('aaa') . "\n";
-echo "DECRBY aaa 2 " . $r->decr('aaa', 2) . "\n";
-echo "GET aaa " . $r->get('aaa') . "\n";
-echo "EXISTS aaa " . $r->exists('aaa') . "\n";
-echo "EXISTS fsfjslfjkls " . $r->exists('fsfjslfjkls') . "\n";
-echo "DELETE aaa " . $r->delete('aaa') . "\n";
-echo "EXISTS aaa " . $r->exists('aaa') . "\n";
-echo 'SET a1 a2 a3' . $r->set('a1', 'a') . $r->set('a2', 'b') . $r->set('a3', 'c') . "\n";
-echo 'KEYS a* ' . print_r($r->keys('a*'), true) . "\n";
-echo 'RANDOMKEY ' . $r->randomkey('a*') . "\n";
-echo 'RENAME a1 a0 ' . $r->rename('a1', 'a0') . "\n";
-echo 'RENAMENX a0 a2 ' . $r->rename('a0', 'a2', true) . "\n";
-echo 'RENAMENX a0 a1 ' . $r->rename('a0', 'a1', true) . "\n";
 
 ?>
