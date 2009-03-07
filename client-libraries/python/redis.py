@@ -12,6 +12,9 @@ __revision__ = "$LastChangedRevision$"[22:-2]
 __date__ = "$LastChangedDate$"[18:-2]
 
 
+# TODO: Redis._get_multi_response
+
+
 import socket
 
 
