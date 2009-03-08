@@ -6,6 +6,7 @@
 #define ANET_ERR_LEN 256
 
 int anetTcpConnect(char *err, char *addr, int port);
+int anetTcpNonBlockConnect(char *err, char *addr, int port);
 int anetRead(int fd, void *buf, int count);
 int anetResolve(char *err, char *host, char *ipbuf);
 int anetTcpServer(char *err, int port, char *bindaddr);
