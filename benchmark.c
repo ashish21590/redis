@@ -241,6 +241,7 @@ static void showLatencyReport() {
     printf("== %d requests completed in %.2f seconds\n", config.donerequests,
         (float)config.totlatency/1000);
     printf("== %d parallel clients\n", config.numclients);
+    printf("== %d bytes payload\n", config.datasize);
     printf("== keep alive: %d\n", config.keepalive);
     printf("\n");
     for (j = 0; j <= MAX_LATENCY; j++) {
@@ -292,6 +293,11 @@ void parseOptions(int argc, char **argv) {
         } else if (!strcmp(argv[i],"-p") && !lastarg) {
             config.hostport = atoi(argv[i+1]);
             i++;
+        } else if (!strcmp(argv[i],"-d") && !lastarg) {
+            config.datasize = atoi(argv[i+1]);
+            i++;
+            if (config.datasize < 1) config.datasize=1;
+            if (config.datasize > 1024*1024) config.datasize = 1024*1024;
         } else {
             printf("Wrong option '%s' or option argument missing\n\n",argv[i]);
             printf("Usage: redis-benchmark [-h <host>] [-p <port>] [-c <clients>] [-n <requests]> [-k <boolean>]\n\n");
@@ -299,6 +305,7 @@ void parseOptions(int argc, char **argv) {
             printf(" -p <hostname>      Server port (default 6379)\n");
             printf(" -c <clients>       Number of parallel connections (default 50)\n");
             printf(" -n <requests>      Total number of requests (default 10000)\n");
+            printf(" -d <size>          Data size of SET/GET value in bytes (default 2)\n");
             printf(" -k <boolean>       1=keep alive 0=reconnect (default 1)\n");
             exit(1);
         }
@@ -317,6 +324,7 @@ int main(int argc, char **argv) {
     config.el = aeCreateEventLoop();
     config.keepalive = 1;
     config.donerequests = 0;
+    config.datasize = 3;
     config.latency = NULL;
     config.clients = listCreate();
     config.latency = malloc(sizeof(int)*(MAX_LATENCY+1));
@@ -334,7 +342,14 @@ int main(int argc, char **argv) {
     prepareForBenchmark();
     c = createClient();
     if (!c) exit(1);
-    c->obuf = sdscat(c->obuf,"SET foo 3\r\nbar\r\n");
+    c->obuf = sdscatprintf(c->obuf,"SET foo %d\r\n",config.datasize);
+    {
+        char *data = malloc(config.datasize+2);
+        memset(data,'x',config.datasize);
+        data[config.datasize] = '\r';
+        data[config.datasize+1] = '\n';
+        c->obuf = sdscatlen(c->obuf,data,config.datasize+2);
+    }
     c->replytype = REPLY_RETCODE;
     createMissingClients(c);
     aeMain(config.el);
