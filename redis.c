@@ -1328,6 +1328,8 @@ static int saveDb(char *filename) {
     /* EOF opcode */
     type = REDIS_EOF;
     if (fwrite(&type,1,1,fp) == 0) goto werr;
+    fflush(fp);
+    fsync(fileno(fp));
     fclose(fp);
     
     /* Use RENAME to make sure the DB file is changed atomically only
