@@ -8,7 +8,7 @@ CFLAGS?= -O2 -Wall -W -DSDS_ABORT_ON_OOM
 CCOPT= $(CFLAGS)
 
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o picol.o
-BENCHOBJ = ae.o anet.o benchmark.o sds.o
+BENCHOBJ = ae.o anet.o benchmark.o sds.o adlist.o
 PRGNAME = redis-server
 
 all: redis-server redis-benchmark

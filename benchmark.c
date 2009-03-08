@@ -5,10 +5,12 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <assert.h>
 
 #include "ae.h"
 #include "anet.h"
 #include "sds.h"
+#include "adlist.h"
 
 #define REPLY_INT 0
 #define REPLY_RETCODE 1
@@ -21,7 +23,7 @@
 #define MAX_LATENCY 5000
 
 static struct config {
-    int clients;
+    int numclients;
     int requests;
     int liveclients;
     int donerequests;
@@ -34,6 +36,7 @@ static struct config {
     long long start;
     long long totlatency;
     int *latency;
+    list *clients;
 } config;
 
 typedef struct _client {
@@ -63,6 +66,8 @@ static long long mstime(void) {
 }
 
 static void freeClient(client c) {
+    listNode *ln;
+
     aeDeleteFileEvent(config.el,c->fd,AE_WRITABLE);
     aeDeleteFileEvent(config.el,c->fd,AE_READABLE);
     sdsfree(c->ibuf);
@@ -70,6 +75,19 @@ static void freeClient(client c) {
     close(c->fd);
     free(c);
     config.liveclients--;
+    ln = listSearchKey(config.clients,c);
+    assert(ln != NULL);
+    listDelNode(config.clients,ln);
+}
+
+static void freeAllClients(void) {
+    listNode *ln = config.clients->head, *next;
+
+    while(ln) {
+        next = ln->next;
+        freeClient(ln->value);
+        ln = next;
+    }
 }
 
 static void resetClient(client c) {
@@ -191,11 +209,12 @@ static client createClient(void) {
     c->state = CLIENT_CONNECTING;
     aeCreateFileEvent(config.el, c->fd, AE_WRITABLE, writeHandler, c, NULL);
     config.liveclients++;
+    listAddNodeTail(config.clients,c);
     return c;
 }
 
 static void createMissingClients(client c) {
-    while(config.liveclients < config.clients) {
+    while(config.liveclients < config.numclients) {
         client new = createClient();
         if (!new) continue;
         sdsfree(new->obuf);
@@ -210,7 +229,7 @@ static void showLatencyReport() {
 
     printf("== %d requests completed in %.2f seconds\n", config.donerequests,
         (float)config.totlatency/1000);
-    printf("== %d parallel clients\n", config.clients);
+    printf("== %d parallel clients\n", config.numclients);
     printf("== keep alive: %d\n", config.keepalive);
     printf("\n");
     for (j = 0; j <= MAX_LATENCY; j++) {
@@ -229,12 +248,14 @@ int main(int argc, char **argv) {
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
 
-    config.clients = 50;
+    config.numclients = 100;
     config.requests = 100000;
     config.liveclients = 0;
     config.el = aeCreateEventLoop();
     config.keepalive = 1;
     config.donerequests = 0;
+    config.latency = NULL;
+    config.clients = listCreate();
 
     config.hostip = "127.0.0.1";
     config.hostport = 6379;
@@ -255,7 +276,8 @@ int main(int argc, char **argv) {
     createMissingClients(c);
     aeMain(config.el);
     config.totlatency = mstime()-config.start;
-
     showLatencyReport();
+    freeAllClients();
+
     return 0;
 }
