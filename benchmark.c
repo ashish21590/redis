@@ -22,6 +22,8 @@
 
 #define MAX_LATENCY 5000
 
+#define REDIS_NOTUSED(V) ((void) V)
+
 static struct config {
     int numclients;
     int requests;
@@ -96,7 +98,7 @@ static void resetClient(client c) {
     aeCreateFileEvent(config.el,c->fd, AE_WRITABLE,writeHandler,c,NULL);
     sdsfree(c->ibuf);
     c->ibuf = sdsempty();
-    c->readlen = 0;
+    c->readlen = (c->replytype == REPLY_BULK) ? -1 : 0;
     c->written = 0;
     c->state = CLIENT_SENDQUERY;
     c->start = mstime();
@@ -129,6 +131,9 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask)
     char buf[1024];
     int nread;
     client c = privdata;
+    REDIS_NOTUSED(el);
+    REDIS_NOTUSED(fd);
+    REDIS_NOTUSED(mask);
 
     nread = read(c->fd, buf, 1024);
     if (nread == -1) {
@@ -169,6 +174,9 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask)
 static void writeHandler(aeEventLoop *el, int fd, void *privdata, int mask)
 {
     client c = privdata;
+    REDIS_NOTUSED(el);
+    REDIS_NOTUSED(fd);
+    REDIS_NOTUSED(mask);
 
     if (c->state == CLIENT_CONNECTING) {
         c->state = CLIENT_SENDQUERY;
@@ -202,6 +210,7 @@ static client createClient(void) {
         fprintf(stderr,"Connect: %s\n",err);
         return NULL;
     }
+    anetTcpNoDelay(NULL,c->fd);
     c->obuf = sdsempty();
     c->ibuf = sdsempty();
     c->readlen = 0;
@@ -220,6 +229,8 @@ static void createMissingClients(client c) {
         sdsfree(new->obuf);
         new->obuf = sdsdup(c->obuf);
         new->replytype = c->replytype;
+        if (c->replytype == REPLY_BULK)
+            new->readlen = -1;
     }
 }
 
@@ -242,42 +253,103 @@ static void showLatencyReport() {
     printf("\n== %.2f requests per second\n", (float)config.donerequests/((float)config.totlatency/1000));
 }
 
+static void prepareForBenchmark(void)
+{
+    memset(config.latency,0,sizeof(int)*(MAX_LATENCY+1));
+    config.start = mstime();
+    config.donerequests = 0;
+}
+
+static void endBenchmark(void) {
+    config.totlatency = mstime()-config.start;
+    showLatencyReport();
+    freeAllClients();
+}
+
+void parseOptions(int argc, char **argv) {
+    int i;
+
+    for (i = 1; i < argc; i++) {
+        int lastarg = i==argc-1;
+        
+        if (!strcmp(argv[i],"-c") && !lastarg) {
+            config.numclients = atoi(argv[i+1]);
+            i++;
+        } else if (!strcmp(argv[i],"-n") && !lastarg) {
+            config.requests = atoi(argv[i+1]);
+            i++;
+        } else if (!strcmp(argv[i],"-k") && !lastarg) {
+            config.keepalive = atoi(argv[i+1]);
+            i++;
+        } else if (!strcmp(argv[i],"-h") && !lastarg) {
+            char *ip = malloc(32);
+            if (anetResolve(NULL,argv[i+1],ip) == ANET_ERR) {
+                printf("Can't resolve %s\n", argv[i]);
+                exit(1);
+            }
+            config.hostip = ip;
+            i++;
+        } else if (!strcmp(argv[i],"-p") && !lastarg) {
+            config.hostport = atoi(argv[i+1]);
+            i++;
+        } else {
+            printf("Wrong option '%s' or option argument missing\n\n",argv[i]);
+            printf("Usage: redis-benchmark [-h <host>] [-p <port>] [-c <clients>] [-n <requests]> [-k <boolean>]\n\n");
+            printf(" -h <hostname>      Server hostname (default 127.0.0.1)\n");
+            printf(" -p <hostname>      Server port (default 6379)\n");
+            printf(" -c <clients>       Number of parallel connections (default 50)\n");
+            printf(" -n <requests>      Total number of requests (default 10000)\n");
+            printf(" -k <boolean>       1=keep alive 0=reconnect (default 1)\n");
+            exit(1);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     client c;
 
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
 
-    config.numclients = 100;
-    config.requests = 100000;
+    config.numclients = 50;
+    config.requests = 10000;
     config.liveclients = 0;
     config.el = aeCreateEventLoop();
     config.keepalive = 1;
     config.donerequests = 0;
     config.latency = NULL;
     config.clients = listCreate();
+    config.latency = malloc(sizeof(int)*(MAX_LATENCY+1));
 
     config.hostip = "127.0.0.1";
     config.hostport = 6379;
+
+    parseOptions(argc,argv);
 
     if (config.keepalive == 0) {
         printf("WARNING: keepalive disabled, you probably need 'echo 1 > /proc/sys/net/ipv4/tcp_tw_reuse' in order to use a lot of clients/requests\n");
     }
 
-    /* Write test */
-    config.latency = malloc(sizeof(int)*(MAX_LATENCY+1));
-    memset(config.latency,0,sizeof(int)*(MAX_LATENCY+1));
-    config.start = mstime();
-
+    printf("\n\n*** SET TEST ***\n");
+    prepareForBenchmark();
     c = createClient();
     if (!c) exit(1);
     c->obuf = sdscat(c->obuf,"SET foo 3\r\nbar\r\n");
     c->replytype = REPLY_RETCODE;
     createMissingClients(c);
     aeMain(config.el);
-    config.totlatency = mstime()-config.start;
-    showLatencyReport();
-    freeAllClients();
+    endBenchmark();
+
+    printf("\n\n*** GET TEST ***\n");
+    prepareForBenchmark();
+    c = createClient();
+    if (!c) exit(1);
+    c->obuf = sdscat(c->obuf,"GET foo\r\n");
+    c->replytype = REPLY_BULK;
+    c->readlen = -1;
+    createMissingClients(c);
+    aeMain(config.el);
+    endBenchmark();
 
     return 0;
 }
