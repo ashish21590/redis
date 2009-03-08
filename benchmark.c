@@ -366,5 +366,15 @@ int main(int argc, char **argv) {
     aeMain(config.el);
     endBenchmark();
 
+    printf("\n\n*** INCR TEST ***\n");
+    prepareForBenchmark();
+    c = createClient();
+    if (!c) exit(1);
+    c->obuf = sdscat(c->obuf,"INCR counter\r\n");
+    c->replytype = REPLY_INT;
+    createMissingClients(c);
+    aeMain(config.el);
+    endBenchmark();
+
     return 0;
 }
