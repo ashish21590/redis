@@ -830,15 +830,15 @@ static void glueReplyBuffersIfNeeded(redisClient *c) {
     listNode *ln = c->reply->head, *next;
     robj *o;
 
-    /* Try to glue only if it makes sense */
-    if (listLength(c->reply) <= 1 && listLength(c->reply) > 16) return;
-
     while(ln) {
         o = ln->value;
         totlen += sdslen(o->ptr);
         ln = ln->next;
+        /* This optimization makes more sense if we don't have to copy
+         * too much data */
+        if (totlen > 1024) return;
     }
-    if (totlen > 0 && totlen <= 1024) {
+    if (totlen > 0) {
         char buf[1024];
         int copylen = 0;
 
@@ -863,7 +863,8 @@ static void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask)
     REDIS_NOTUSED(el);
     REDIS_NOTUSED(mask);
 
-    if (server.glueoutputbuf) glueReplyBuffersIfNeeded(c);
+    if (server.glueoutputbuf && listLength(c->reply) > 1)
+        glueReplyBuffersIfNeeded(c);
     while(listLength(c->reply)) {
         o = listNodeValue(listFirst(c->reply));
         objlen = sdslen(o->ptr);
