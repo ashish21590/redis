@@ -44,3 +44,6 @@ dep:
 
 test:
 	tclsh test-redis.tcl
+
+bench:
+	./redis-benchmark

@@ -39,6 +39,8 @@ static struct config {
     long long totlatency;
     int *latency;
     list *clients;
+    int quiet;
+    int loop;
 } config;
 
 typedef struct _client {
@@ -157,6 +159,10 @@ static void readHandler(aeEventLoop *el, int fd, void *privdata, int mask)
             if (c->replytype == REPLY_BULK) {
                 *p = '\0';
                 *(p-1) = '\0';
+                if (memcmp(c->ibuf,"nil",3) == 0) {
+                    clientDone(c);
+                    return;
+                }
                 c->readlen = atoi(c->ibuf)+2;
                 c->ibuf = sdsrange(c->ibuf,(p-c->ibuf)+1,-1);
             } else {
@@ -234,24 +240,30 @@ static void createMissingClients(client c) {
     }
 }
 
-static void showLatencyReport() {
+static void showLatencyReport(char *title) {
     int j, seen = 0;
-    float perc;
+    float perc, reqpersec;
 
-    printf("== %d requests completed in %.2f seconds\n", config.donerequests,
-        (float)config.totlatency/1000);
-    printf("== %d parallel clients\n", config.numclients);
-    printf("== %d bytes payload\n", config.datasize);
-    printf("== keep alive: %d\n", config.keepalive);
-    printf("\n");
-    for (j = 0; j <= MAX_LATENCY; j++) {
-        if (config.latency[j]) {
-            seen += config.latency[j];
-            perc = ((float)seen*100)/config.donerequests;
-            printf("%.2f%% <= %d milliseconds\n", perc, j);
+    reqpersec = (float)config.donerequests/((float)config.totlatency/1000);
+    if (!config.quiet) {
+        printf("====== %s ======\n", title);
+        printf("  %d requests completed in %.2f seconds\n", config.donerequests,
+            (float)config.totlatency/1000);
+        printf("  %d parallel clients\n", config.numclients);
+        printf("  %d bytes payload\n", config.datasize);
+        printf("  keep alive: %d\n", config.keepalive);
+        printf("\n");
+        for (j = 0; j <= MAX_LATENCY; j++) {
+            if (config.latency[j]) {
+                seen += config.latency[j];
+                perc = ((float)seen*100)/config.donerequests;
+                printf("%.2f%% <= %d milliseconds\n", perc, j);
+            }
         }
+        printf("%.2f requests per second\n\n", reqpersec);
+    } else {
+        printf("%s: %.2f requests per second\n", title, reqpersec);
     }
-    printf("\n== %.2f requests per second\n", (float)config.donerequests/((float)config.totlatency/1000));
 }
 
 static void prepareForBenchmark(void)
@@ -261,9 +273,9 @@ static void prepareForBenchmark(void)
     config.donerequests = 0;
 }
 
-static void endBenchmark(void) {
+static void endBenchmark(char *title) {
     config.totlatency = mstime()-config.start;
-    showLatencyReport();
+    showLatencyReport(title);
     freeAllClients();
 }
 
@@ -298,6 +310,10 @@ void parseOptions(int argc, char **argv) {
             i++;
             if (config.datasize < 1) config.datasize=1;
             if (config.datasize > 1024*1024) config.datasize = 1024*1024;
+        } else if (!strcmp(argv[i],"-q")) {
+            config.quiet = 1;
+        } else if (!strcmp(argv[i],"-l")) {
+            config.loop = 1;
         } else {
             printf("Wrong option '%s' or option argument missing\n\n",argv[i]);
             printf("Usage: redis-benchmark [-h <host>] [-p <port>] [-c <clients>] [-n <requests]> [-k <boolean>]\n\n");
@@ -307,6 +323,8 @@ void parseOptions(int argc, char **argv) {
             printf(" -n <requests>      Total number of requests (default 10000)\n");
             printf(" -d <size>          Data size of SET/GET value in bytes (default 2)\n");
             printf(" -k <boolean>       1=keep alive 0=reconnect (default 1)\n");
+            printf(" -q                 Quiet. Just show query/sec values\n");
+            printf(" -l                 Loop. Run the tests forever\n");
             exit(1);
         }
     }
@@ -325,6 +343,8 @@ int main(int argc, char **argv) {
     config.keepalive = 1;
     config.donerequests = 0;
     config.datasize = 3;
+    config.quiet = 0;
+    config.loop = 0;
     config.latency = NULL;
     config.clients = listCreate();
     config.latency = malloc(sizeof(int)*(MAX_LATENCY+1));
@@ -338,43 +358,63 @@ int main(int argc, char **argv) {
         printf("WARNING: keepalive disabled, you probably need 'echo 1 > /proc/sys/net/ipv4/tcp_tw_reuse' in order to use a lot of clients/requests\n");
     }
 
-    printf("\n\n*** SET TEST ***\n");
-    prepareForBenchmark();
-    c = createClient();
-    if (!c) exit(1);
-    c->obuf = sdscatprintf(c->obuf,"SET foo %d\r\n",config.datasize);
-    {
-        char *data = malloc(config.datasize+2);
-        memset(data,'x',config.datasize);
-        data[config.datasize] = '\r';
-        data[config.datasize+1] = '\n';
-        c->obuf = sdscatlen(c->obuf,data,config.datasize+2);
-    }
-    c->replytype = REPLY_RETCODE;
-    createMissingClients(c);
-    aeMain(config.el);
-    endBenchmark();
+    do {
+        prepareForBenchmark();
+        c = createClient();
+        if (!c) exit(1);
+        c->obuf = sdscatprintf(c->obuf,"SET foo %d\r\n",config.datasize);
+        {
+            char *data = malloc(config.datasize+2);
+            memset(data,'x',config.datasize);
+            data[config.datasize] = '\r';
+            data[config.datasize+1] = '\n';
+            c->obuf = sdscatlen(c->obuf,data,config.datasize+2);
+        }
+        c->replytype = REPLY_RETCODE;
+        createMissingClients(c);
+        aeMain(config.el);
+        endBenchmark("SET");
 
-    printf("\n\n*** GET TEST ***\n");
-    prepareForBenchmark();
-    c = createClient();
-    if (!c) exit(1);
-    c->obuf = sdscat(c->obuf,"GET foo\r\n");
-    c->replytype = REPLY_BULK;
-    c->readlen = -1;
-    createMissingClients(c);
-    aeMain(config.el);
-    endBenchmark();
+        prepareForBenchmark();
+        c = createClient();
+        if (!c) exit(1);
+        c->obuf = sdscat(c->obuf,"GET foo\r\n");
+        c->replytype = REPLY_BULK;
+        c->readlen = -1;
+        createMissingClients(c);
+        aeMain(config.el);
+        endBenchmark("GET");
 
-    printf("\n\n*** INCR TEST ***\n");
-    prepareForBenchmark();
-    c = createClient();
-    if (!c) exit(1);
-    c->obuf = sdscat(c->obuf,"INCR counter\r\n");
-    c->replytype = REPLY_INT;
-    createMissingClients(c);
-    aeMain(config.el);
-    endBenchmark();
+        prepareForBenchmark();
+        c = createClient();
+        if (!c) exit(1);
+        c->obuf = sdscat(c->obuf,"INCR counter\r\n");
+        c->replytype = REPLY_INT;
+        createMissingClients(c);
+        aeMain(config.el);
+        endBenchmark("INCR");
+
+        prepareForBenchmark();
+        c = createClient();
+        if (!c) exit(1);
+        c->obuf = sdscat(c->obuf,"LPUSH mylist 3\r\nbar\r\n");
+        c->replytype = REPLY_INT;
+        createMissingClients(c);
+        aeMain(config.el);
+        endBenchmark("LPUSH");
+
+        prepareForBenchmark();
+        c = createClient();
+        if (!c) exit(1);
+        c->obuf = sdscat(c->obuf,"LPOP mylist\r\n");
+        c->replytype = REPLY_BULK;
+        c->readlen = -1;
+        createMissingClients(c);
+        aeMain(config.el);
+        endBenchmark("LPOP");
+
+        printf("\n");
+    } while(config.loop);
 
     return 0;
 }
