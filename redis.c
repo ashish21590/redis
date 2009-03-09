@@ -119,6 +119,7 @@ struct redisServer {
     char neterr[ANET_ERR_LEN];
     aeEventLoop *el;
     int verbosity;
+    int glueoutputbuf;
     int cronloops;
     int maxidletime;
     int dbnum;
@@ -621,6 +622,7 @@ static void initServerConfig() {
     server.saveparams = NULL;
     server.logfile = NULL; /* NULL = log on standard output */
     server.bindaddr = NULL;
+    server.glueoutputbuf = 1;
     ResetServerSaveParams();
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
@@ -701,6 +703,7 @@ static void loadServerConfig(char *filename) {
 
         /* Split into arguments */
         argv = sdssplitlen(line,sdslen(line)," ",1,&argc);
+        sdstolower(argv[0]);
 
         /* Execute config directives */
         if (!strcmp(argv[0],"timeout") && argc == 2) {
@@ -764,6 +767,13 @@ static void loadServerConfig(char *filename) {
             server.masterhost = sdsnew(argv[1]);
             server.masterport = atoi(argv[2]);
             server.replstate = REDIS_REPL_CONNECT;
+        } else if (!strcmp(argv[0],"glueoutputbuf") && argc == 2) {
+            sdstolower(argv[1]);
+            if (!strcmp(argv[1],"yes")) server.glueoutputbuf = 1;
+            else if (!strcmp(argv[1],"no")) server.glueoutputbuf = 0;
+            else {
+                err = "argument must be 'yes' or 'no'"; goto loaderr;
+            }
         } else {
             err = "Bad directive or wrong number of arguments"; goto loaderr;
         }
@@ -815,6 +825,37 @@ static void freeClient(redisClient *c) {
     free(c);
 }
 
+static void glueReplyBuffersIfNeeded(redisClient *c) {
+    int totlen = 0;
+    listNode *ln = c->reply->head, *next;
+    robj *o;
+
+    /* Try to glue only if it makes sense */
+    if (listLength(c->reply) <= 1 && listLength(c->reply) > 16) return;
+
+    while(ln) {
+        o = ln->value;
+        totlen += sdslen(o->ptr);
+        ln = ln->next;
+    }
+    if (totlen > 0 && totlen <= 1024) {
+        char buf[1024];
+        int copylen = 0;
+
+        ln = c->reply->head;
+        while(ln) {
+            next = ln->next;
+            o = ln->value;
+            memcpy(buf+copylen,o->ptr,sdslen(o->ptr));
+            copylen += sdslen(o->ptr);
+            listDelNode(c->reply,ln);
+            ln = next;
+        }
+        /* Now the output buffer is empty, add the new single element */
+        addReplySds(c,sdsnewlen(buf,totlen));
+    }
+}
+
 static void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisClient *c = privdata;
     int nwritten = 0, totwritten = 0, objlen;
@@ -822,6 +863,7 @@ static void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask)
     REDIS_NOTUSED(el);
     REDIS_NOTUSED(mask);
 
+    if (server.glueoutputbuf) glueReplyBuffersIfNeeded(c);
     while(listLength(c->reply)) {
         o = listNodeValue(listFirst(c->reply));
         objlen = sdslen(o->ptr);
