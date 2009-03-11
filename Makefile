@@ -1,7 +1,6 @@
-# Makefile for wbox
-# Copyright (C) 2007 Salvatore Sanfilippo <antirez@invece.org>
-# All Rights Reserved
-# Under the GPL license version 2
+# Redis Makefile
+# Copyright (C) 2009 Salvatore Sanfilippo <antirez at gmail dot com>
+# This file is released under the BSD license, see the COPYING file
 
 DEBUG?= -g
 CFLAGS?= -O2 -Wall -W -DSDS_ABORT_ON_OOM
