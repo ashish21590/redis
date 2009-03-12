@@ -9,6 +9,7 @@ CCOPT= $(CFLAGS)
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o picol.o
 BENCHOBJ = ae.o anet.o benchmark.o sds.o adlist.o
 PRGNAME = redis-server
+BENCHPRGNAME = redis-benchmark
 
 all: redis-server redis-benchmark
 
@@ -30,13 +31,13 @@ redis-server: $(OBJ)
 	@echo ""
 
 redis-benchmark: $(BENCHOBJ)
-	$(CC) -o redis-benchmark $(CCOPT) $(DEBUG) $(BENCHOBJ)
+	$(CC) -o $(BENCHPRGNAME) $(CCOPT) $(DEBUG) $(BENCHOBJ)
 
 .c.o:
 	$(CC) -c $(CCOPT) $(DEBUG) $(COMPILE_TIME) $<
 
 clean:
-	rm -rf $(PRGNAME) *.o
+	rm -rf $(PRGNAME) $(BENCHPRGNAME) *.o
 
 dep:
 	$(CC) -MM *.c
