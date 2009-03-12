@@ -151,7 +151,7 @@ struct redisServer {
     int glueoutputbuf;
     int maxidletime;
     int dbnum;
-    int deamonize;
+    int daemonize;
     int bgsaveinprogress;
     struct saveparam *saveparams;
     int saveparamslen;
@@ -650,7 +650,7 @@ static void initServerConfig() {
     server.logfile = NULL; /* NULL = log on standard output */
     server.bindaddr = NULL;
     server.glueoutputbuf = 1;
-    server.deamonize = 0;
+    server.daemonize = 0;
     ResetServerSaveParams();
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
@@ -802,10 +802,10 @@ static void loadServerConfig(char *filename) {
             else {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
-        } else if (!strcmp(argv[0],"deamonize") && argc == 2) {
+        } else if (!strcmp(argv[0],"daemonize") && argc == 2) {
             sdstolower(argv[1]);
-            if (!strcmp(argv[1],"yes")) server.deamonize = 1;
-            else if (!strcmp(argv[1],"no")) server.deamonize = 0;
+            if (!strcmp(argv[1],"yes")) server.daemonize = 1;
+            else if (!strcmp(argv[1],"no")) server.daemonize = 0;
             else {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
@@ -2530,13 +2530,13 @@ static int syncWithMaster(void) {
 
 /* =================================== Main! ================================ */
 
-static void deamonize(void) {
+static void daemonize(void) {
     int fd;
 
     if (fork() != 0) exit(0); /* parent exits */
     setsid(); /* create a new session */
 
-    /* Every output goes to /dev/null. If Redis is deamonized but
+    /* Every output goes to /dev/null. If Redis is daemonized but
      * the 'logfile' is set to 'stdout' in the configuration file
      * it will not log at all. */
     if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
@@ -2557,7 +2557,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
     initServer();
-    if (server.deamonize) deamonize();
+    if (server.daemonize) daemonize();
     redisLog(REDIS_NOTICE,"Server started");
     if (loadDb("dump.rdb") == REDIS_OK)
         redisLog(REDIS_NOTICE,"DB loaded from disk");
