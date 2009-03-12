@@ -63,7 +63,9 @@ Ask the server to silently close the connection.<p><strong>Return value: none</s
  destination DB. Note that this command returns 1 only if the key was
  successfully moved, and 0 if the target key was already there or if the
  source key was not found at all, so it is possible to use MOVE as a locking
- primitive.<p>*Return value: integer reply, specifically: <pre>1 if the key was moved 0 if the key was not moved because already present on the target DB or was not found in the current DB. -3 if the destination DB is the same as the source DB -4 if the database index if out of range</pre> *</p><h2>Persistence control commands</h2><h3>SAVE</h3>
+ primitive.<p>*Return value: integer reply, specifically: <pre>1 if the key was moved 0 if the key was not moved because already present on the target DB or was not found in the current DB. -3 if the destination DB is the same as the source DB -4 if the database index if out of range</pre> *</p><h3>FLUSHDB</h3>
+ Delete all the keys of the currently selected DB. This command never fails.<p><strong>Return value: status code reply</strong></p><h3>FLUSHALL</h3>
+ Delete all the keys of all the existing databases, not just the currently selected one. This command never fails.<p><strong>Return value: status code reply</strong></p><h2>Persistence control commands</h2><h3>SAVE</h3>
     Save the DB on disk. The server hangs while the saving is not
     completed, no connection is served in the meanwhile. An OK code
     is returned when the DB was fully stored in disk.<p><strong>Return value: status code reply</strong></p><h3>BGSAVE</h3>

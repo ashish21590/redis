@@ -236,6 +236,8 @@ static void sismemberCommand(redisClient *c);
 static void scardCommand(redisClient *c);
 static void sinterCommand(redisClient *c);
 static void syncCommand(redisClient *c);
+static void flushdbCommand(redisClient *c);
+static void flushallCommand(redisClient *c);
 
 /*================================= Globals ================================= */
 
@@ -281,6 +283,8 @@ static struct redisCommand cmdTable[] = {
     {"lastsave",lastsaveCommand,1,REDIS_CMD_INLINE},
     {"type",typeCommand,2,REDIS_CMD_INLINE},
     {"sync",syncCommand,1,REDIS_CMD_INLINE},
+    {"flushdb",flushdbCommand,1,REDIS_CMD_INLINE},
+    {"flushall",flushallCommand,1,REDIS_CMD_INLINE},
     {"",NULL,0,0}
 };
 
@@ -2330,6 +2334,16 @@ static void sinterCommand(redisClient *c) {
     lenobj->ptr = sdscatprintf(sdsempty(),"%d\r\n",cardinality);
     dictReleaseIterator(di);
     free(dv);
+}
+
+static void flushdbCommand(redisClient *c) {
+    dictEmpty(c->dict);
+    addReply(c,shared.ok);
+}
+
+static void flushallCommand(redisClient *c) {
+    emptyDb();
+    addReply(c,shared.ok);
 }
 
 /* =============================== Replication  ============================= */
