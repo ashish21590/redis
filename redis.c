@@ -143,14 +143,16 @@ struct redisServer {
     list *slaves;
     char neterr[ANET_ERR_LEN];
     aeEventLoop *el;
+    int cronloops;              /* number of times the cron function run */
+    list *objfreelist;          /* A list of freed objects to avoid malloc() */
+    time_t lastsave;            /* Unix time of last save succeeede */
+    /* Configuration */
     int verbosity;
     int glueoutputbuf;
-    int cronloops;
     int maxidletime;
     int dbnum;
-    list *objfreelist;          /* A list of freed objects to avoid malloc() */
+    int deamonize;
     int bgsaveinprogress;
-    time_t lastsave;
     struct saveparam *saveparams;
     int saveparamslen;
     char *logfile;
@@ -648,6 +650,7 @@ static void initServerConfig() {
     server.logfile = NULL; /* NULL = log on standard output */
     server.bindaddr = NULL;
     server.glueoutputbuf = 1;
+    server.deamonize = 0;
     ResetServerSaveParams();
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
@@ -796,6 +799,13 @@ static void loadServerConfig(char *filename) {
             sdstolower(argv[1]);
             if (!strcmp(argv[1],"yes")) server.glueoutputbuf = 1;
             else if (!strcmp(argv[1],"no")) server.glueoutputbuf = 0;
+            else {
+                err = "argument must be 'yes' or 'no'"; goto loaderr;
+            }
+        } else if (!strcmp(argv[0],"deamonize") && argc == 2) {
+            sdstolower(argv[1]);
+            if (!strcmp(argv[1],"yes")) server.deamonize = 1;
+            else if (!strcmp(argv[1],"no")) server.deamonize = 0;
             else {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
@@ -2520,17 +2530,34 @@ static int syncWithMaster(void) {
 
 /* =================================== Main! ================================ */
 
+static void deamonize(void) {
+    int fd;
+
+    if (fork() != 0) exit(0); /* parent exits */
+    setsid(); /* create a new session */
+
+    /* Every output goes to /dev/null. If Redis is deamonized but
+     * the 'logfile' is set to 'stdout' in the configuration file
+     * it will not log at all. */
+    if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
+        dup2(fd, STDIN_FILENO);
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
+        if (fd > STDERR_FILENO) close(fd);
+    }
+}
+
 int main(int argc, char **argv) {
     initServerConfig();
     if (argc == 2) {
         ResetServerSaveParams();
         loadServerConfig(argv[1]);
-        redisLog(REDIS_NOTICE,"Configuration loaded");
     } else if (argc > 2) {
         fprintf(stderr,"Usage: ./redis-server [/path/to/redis.conf]\n");
         exit(1);
     }
     initServer();
+    if (server.deamonize) deamonize();
     redisLog(REDIS_NOTICE,"Server started");
     if (loadDb("dump.rdb") == REDIS_OK)
         redisLog(REDIS_NOTICE,"DB loaded from disk");
