@@ -157,6 +157,7 @@ struct redisServer {
     int saveparamslen;
     char *logfile;
     char *bindaddr;
+    char *dbfilename;
     /* Replication related */
     int isslave;
     char *masterhost;
@@ -580,7 +581,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
                 now-server.lastsave > sp->seconds) {
                 redisLog(REDIS_NOTICE,"%d changes in %d seconds. Saving...",
                     sp->changes, sp->seconds);
-                saveDbBackground("dump.rdb");
+                saveDbBackground(server.dbfilename);
                 break;
             }
          }
@@ -655,6 +656,7 @@ static void initServerConfig() {
     server.bindaddr = NULL;
     server.glueoutputbuf = 1;
     server.daemonize = 0;
+    server.dbfilename = "dump.rdb";
     ResetServerSaveParams();
 
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
@@ -1787,7 +1789,7 @@ static void typeCommand(redisClient *c) {
 }
 
 static void saveCommand(redisClient *c) {
-    if (saveDb("dump.rdb") == REDIS_OK) {
+    if (saveDb(server.dbfilename) == REDIS_OK) {
         addReply(c,shared.ok);
     } else {
         addReply(c,shared.err);
@@ -1799,7 +1801,7 @@ static void bgsaveCommand(redisClient *c) {
         addReplySds(c,sdsnew("-ERR background save already in progress\r\n"));
         return;
     }
-    if (saveDbBackground("dump.rdb") == REDIS_OK) {
+    if (saveDbBackground(server.dbfilename) == REDIS_OK) {
         addReply(c,shared.ok);
     } else {
         addReply(c,shared.err);
@@ -1808,7 +1810,7 @@ static void bgsaveCommand(redisClient *c) {
 
 static void shutdownCommand(redisClient *c) {
     redisLog(REDIS_WARNING,"User requested shutdown, saving DB...");
-    if (saveDb("dump.rdb") == REDIS_OK) {
+    if (saveDb(server.dbfilename) == REDIS_OK) {
         redisLog(REDIS_WARNING,"Server exit now, bye bye...");
         exit(1);
     } else {
@@ -2339,11 +2341,13 @@ static void sinterCommand(redisClient *c) {
 static void flushdbCommand(redisClient *c) {
     dictEmpty(c->dict);
     addReply(c,shared.ok);
+    saveDb(server.dbfilename);
 }
 
 static void flushallCommand(redisClient *c) {
     emptyDb();
     addReply(c,shared.ok);
+    saveDb(server.dbfilename);
 }
 
 /* =============================== Replication  ============================= */
@@ -2434,10 +2438,10 @@ static void syncCommand(redisClient *c) {
     char sizebuf[32];
 
     redisLog(REDIS_NOTICE,"Slave ask for syncronization");
-    if (flushClientOutput(c) == REDIS_ERR || saveDb("dump.rdb") != REDIS_OK)
+    if (flushClientOutput(c) == REDIS_ERR || saveDb(server.dbfilename) != REDIS_OK)
         goto closeconn;
 
-    fd = open("dump.rdb", O_RDONLY);
+    fd = open(server.dbfilename, O_RDONLY);
     if (fd == -1 || fstat(fd,&sb) == -1) goto closeconn;
     len = sb.st_size;
 
@@ -2524,14 +2528,14 @@ static int syncWithMaster(void) {
         dumpsize -= nread;
     }
     close(dfd);
-    if (rename(tmpfile,"dump.rdb") == -1) {
+    if (rename(tmpfile,server.dbfilename) == -1) {
         redisLog(REDIS_WARNING,"Failed trying to rename the temp DB into dump.rdb in MASTER <-> SLAVE synchronization: %s", strerror(errno));
         unlink(tmpfile);
         close(fd);
         return REDIS_ERR;
     }
     emptyDb();
-    if (loadDb("dump.rdb") != REDIS_OK) {
+    if (loadDb(server.dbfilename) != REDIS_OK) {
         redisLog(REDIS_WARNING,"Failed trying to load the MASTER synchronization DB from disk");
         close(fd);
         return REDIS_ERR;
@@ -2573,7 +2577,7 @@ int main(int argc, char **argv) {
     initServer();
     if (server.daemonize) daemonize();
     redisLog(REDIS_NOTICE,"Server started");
-    if (loadDb("dump.rdb") == REDIS_OK)
+    if (loadDb(server.dbfilename) == REDIS_OK)
         redisLog(REDIS_NOTICE,"DB loaded from disk");
     if (aeCreateFileEvent(server.el, server.fd, AE_READABLE,
         acceptHandler, NULL, NULL) == AE_ERR) oom("creating file event");
