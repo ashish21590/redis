@@ -406,13 +406,23 @@ proc main {server port} {
         }
         lsort [redis_sinter $fd set1 set2]
     } {995 996 997 998 999}
+    
+    test {SINTERSTORE with two sets} {
+        redis_sinterstore $fd setres set1 set2
+        lsort [redis_smembers $fd setres]
+    } {995 996 997 998 999}
 
-    test {LINTER against three sets} {
+    test {SINTER against three sets} {
         redis_sadd $fd set3 999
         redis_sadd $fd set3 995
         redis_sadd $fd set3 1000
         redis_sadd $fd set3 2000
         lsort [redis_sinter $fd set1 set2 set3]
+    } {995 999}
+
+    test {SINTERSTORE with three sets} {
+        redis_sinterstore $fd setres set1 set2 set3
+        lsort [redis_smembers $fd setres]
     } {995 999}
     
     test {SAVE - make sure there are all the types as values} {
@@ -424,21 +434,9 @@ proc main {server port} {
     } {+OK}
 
     # Leave the user with a clean DB before to exit
-    test {DEL all keys again (DB 0)} {
-        foreach key [redis_keys $fd *] {
-            redis_del $fd $key
-        }
+    test {FLUSHALL} {
+        redis_flushall $fd
         redis_dbsize $fd
-    } {0}
-
-    test {DEL all keys again (DB 1)} {
-        redis_select $fd 1
-        foreach key [redis_keys $fd *] {
-            redis_del $fd $key
-        }
-        set res [redis_dbsize $fd]
-        redis_select $fd 0
-        format $res
     } {0}
 
     puts "\n[expr $::passed+$::failed] tests, $::passed passed, $::failed failed"
@@ -642,6 +640,11 @@ proc redis_sinter {fd args} {
     redis_multi_bulk_read $fd
 }
 
+proc redis_sinterstore {fd args} {
+    redis_writenl $fd "sinterstore [join $args]\r\n"
+    redis_read_retcode $fd
+}
+
 proc redis_smembers {fd key} {
     redis_writenl $fd "smembers $key\r\n"
     redis_multi_bulk_read $fd
@@ -654,6 +657,16 @@ proc redis_echo {fd str} {
 
 proc redis_save {fd} {
     redis_writenl $fd "save\r\n"
+    redis_read_retcode $fd
+}
+
+proc redis_flushall {fd} {
+    redis_writenl $fd "flushall\r\n"
+    redis_read_retcode $fd
+}
+
+proc redis_flushdb {fd} {
+    redis_writenl $fd "flushdb\r\n"
     redis_read_retcode $fd
 }
 
