@@ -432,17 +432,28 @@ proc main {server port} {
         redis_set $fd mynormalkey {blablablba}
         redis_save $fd
     } {+OK}
-
-    test {SORT with BY} {
+    
+    if 0 {
+    test {Create a random list} {
+        set tosort {}
         for {set i 0} {$i < 10000} {incr i} {
+            set r [expr rand()]
             redis_lpush $fd tosort $i
-            redis_set $fd weight_$i [expr rand()]
+            redis_set $fd weight_$i $r
+            lappend tosort [list $i $r]
         }
-        for {set i 0} {$i < 100} {incr i} {
-            puts sort
-            redis_sort $fd tosort {BY weight_*}
+        set sorted [lsort -index 1 -real $tosort]
+        set res {}
+        for {set i 0} {$i < 20000} {incr i 2} {
+            lappend res [lindex $sorted $i]
         }
+        format {}
     } {}
+
+    test {SORT with BY against the newly created list} {
+        redis_sort $fd tosort {BY weight_*}
+    } $res
+    }
 
     # Leave the user with a clean DB before to exit
     test {FLUSHALL} {
