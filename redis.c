@@ -2656,7 +2656,6 @@ static void sortCommand(redisClient *c) {
             addReply(c,shared.crlf);
         }
         while(ln) {
-            ln = ln->next;
             redisSortOperation *sop = ln->value;
             robj *val = lookupKeyByPattern(c->dict,sop->pattern,
                 vector[j].obj);
@@ -2673,6 +2672,7 @@ static void sortCommand(redisClient *c) {
             } else if (sop->type == REDIS_SORT_DEL) {
                 /* TODO */
             }
+            ln = ln->next;
         }
     }
 
