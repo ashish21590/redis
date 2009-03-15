@@ -56,7 +56,7 @@ list *listCreate(void)
  * This function can't fail. */
 void listRelease(list *list)
 {
-    int len;
+    unsigned int len;
     listNode *current, *next;
 
     current = list->head;

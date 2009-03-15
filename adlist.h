@@ -45,7 +45,7 @@ typedef struct list {
     void *(*dup)(void *ptr);
     void (*free)(void *ptr);
     int (*match)(void *ptr, void *key);
-    int len;
+    unsigned int len;
 } list;
 
 typedef struct listIter {
