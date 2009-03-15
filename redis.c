@@ -2680,7 +2680,7 @@ static void sortCommand(redisClient *c) {
     listRelease(operations);
     for (j = 0; j < vectorlen; j++) {
         decrRefCount(vector[j].obj);
-        if (vector[j].u.cmpobj)
+        if (sortby && alpha && vector[j].u.cmpobj)
             decrRefCount(vector[j].u.cmpobj);
     }
     free(vector);

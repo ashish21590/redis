@@ -433,6 +433,17 @@ proc main {server port} {
         redis_save $fd
     } {+OK}
 
+    test {SORT with BY} {
+        for {set i 0} {$i < 10000} {incr i} {
+            redis_lpush $fd tosort $i
+            redis_set $fd weight_$i [expr rand()]
+        }
+        for {set i 0} {$i < 100} {incr i} {
+            puts sort
+            redis_sort $fd tosort {BY weight_*}
+        }
+    } {}
+
     # Leave the user with a clean DB before to exit
     test {FLUSHALL} {
         redis_flushall $fd
@@ -587,6 +598,11 @@ proc redis_lindex {fd key index} {
 
 proc redis_lrange {fd key first last} {
     redis_writenl $fd "lrange $key $first $last"
+    redis_multi_bulk_read $fd
+}
+
+proc redis_sort {fd key {params {}}} {
+    redis_writenl $fd "sort $key $params"
     redis_multi_bulk_read $fd
 }
 
