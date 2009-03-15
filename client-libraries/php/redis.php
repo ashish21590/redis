@@ -166,6 +166,16 @@ class Redis {
         $this->_write("LRANGE $name $start $end\r\n");
         return $this->_get_multi();
     }
+
+    function &sort($name, $query=false) {
+        $this->connect();
+        if ($query === false) {
+            $this->_write("SORT $name\r\n");
+        } else {
+            $this->_write("SORT $name $query\r\n");
+        }
+        return $this->_get_multi();
+    }
     
     function &lset($name, $value, $index) {
         $this->connect();
