@@ -202,6 +202,12 @@ class Redis {
         $this->_write("SMEMBERS $name\r\n");
         return $this->_get_multi();
     }
+
+    function &scard($name) {
+        $this->connect();
+        $this->_write("SCARD $name\r\n");
+        return $this->_numeric_response();
+    }
     
     function &select_db($name) {
         $this->connect();
