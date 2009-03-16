@@ -269,6 +269,7 @@ static void syncCommand(redisClient *c);
 static void flushdbCommand(redisClient *c);
 static void flushallCommand(redisClient *c);
 static void sortCommand(redisClient *c);
+static void lremCommand(redisClient *c);
 
 /*================================= Globals ================================= */
 
@@ -291,6 +292,7 @@ static struct redisCommand cmdTable[] = {
     {"lset",lsetCommand,4,REDIS_CMD_BULK},
     {"lrange",lrangeCommand,4,REDIS_CMD_INLINE},
     {"ltrim",ltrimCommand,4,REDIS_CMD_INLINE},
+    {"lrem",lremCommand,4,REDIS_CMD_BULK},
     {"sadd",saddCommand,3,REDIS_CMD_BULK},
     {"srem",sremCommand,3,REDIS_CMD_BULK},
     {"sismember",sismemberCommand,3,REDIS_CMD_BULK},
@@ -2209,6 +2211,44 @@ static void ltrimCommand(redisClient *c) {
             }
             addReply(c,shared.ok);
             server.dirty++;
+        }
+    }
+}
+
+static void lremCommand(redisClient *c) {
+    dictEntry *de;
+    
+    de = dictFind(c->dict,c->argv[1]);
+    if (de == NULL) {
+        addReply(c,shared.minus1);
+    } else {
+        robj *o = dictGetEntryVal(de);
+        
+        if (o->type != REDIS_LIST) {
+            addReply(c,shared.minus2);
+        } else {
+            list *list = o->ptr;
+            listNode *ln, *next;
+            int toremove = atoi(c->argv[2]->ptr);
+            int removed = 0;
+            int fromtail = 0;
+
+            if (toremove < 0) {
+                toremove = -toremove;
+                fromtail = 1;
+            }
+            ln = fromtail ? list->tail : list->head;
+            while (ln) {
+                next = fromtail ? ln->prev : ln->next;
+                robj *ele = listNodeValue(ln);
+                if (sdscmp(ele->ptr,c->argv[3]->ptr) == 0) {
+                    listDelNode(list,ln);
+                    removed++;
+                    if (toremove && removed == toremove) break;
+                }
+                ln = next;
+            }
+            addReplySds(c,sdscatprintf(sdsempty(),"%d\r\n",removed));
         }
     }
 }

@@ -501,6 +501,50 @@ proc main {server port} {
         format {}
     } {}
 
+    test {LREM, remove all the occurrences} {
+        redis_flushall $fd
+        redis_rpush $fd mylist foo
+        redis_rpush $fd mylist bar
+        redis_rpush $fd mylist foobar
+        redis_rpush $fd mylist foobared
+        redis_rpush $fd mylist zap
+        redis_rpush $fd mylist bar
+        redis_rpush $fd mylist test
+        redis_rpush $fd mylist foo
+        set res [redis_lrem $fd mylist 0 bar]
+        list [redis_lrange $fd mylist 0 -1] $res
+    } {{foo foobar foobared zap test foo} 2}
+
+    test {LREM, remove the first occurrence} {
+        set res [redis_lrem $fd mylist 1 foo]
+        list [redis_lrange $fd mylist 0 -1] $res
+    } {{foobar foobared zap test foo} 1}
+
+    test {LREM, remove non existing element} {
+        set res [redis_lrem $fd mylist 1 nosuchelement]
+        list [redis_lrange $fd mylist 0 -1] $res
+    } {{foobar foobared zap test foo} 0}
+
+    test {LREM, starting from tail with negative count} {
+        redis_flushall $fd
+        redis_rpush $fd mylist foo
+        redis_rpush $fd mylist bar
+        redis_rpush $fd mylist foobar
+        redis_rpush $fd mylist foobared
+        redis_rpush $fd mylist zap
+        redis_rpush $fd mylist bar
+        redis_rpush $fd mylist test
+        redis_rpush $fd mylist foo
+        redis_rpush $fd mylist foo
+        set res [redis_lrem $fd mylist -1 bar]
+        list [redis_lrange $fd mylist 0 -1] $res
+    } {{foo bar foobar foobared zap test foo foo} 1}
+
+    test {LREM, starting from tail with negative count (2)} {
+        set res [redis_lrem $fd mylist -2 foo]
+        list [redis_lrange $fd mylist 0 -1] $res
+    } {{foo bar foobar foobared zap test} 2}
+
     # Leave the user with a clean DB before to exit
     test {FLUSHALL} {
         redis_flushall $fd
@@ -741,6 +785,11 @@ proc redis_flushall {fd} {
 proc redis_flushdb {fd} {
     redis_writenl $fd "flushdb\r\n"
     redis_read_retcode $fd
+}
+
+proc redis_lrem {fd key count val} {
+    redis_writenl $fd "lrem $key $count [string length $val]\r\n$val"
+    redis_read_integer $fd
 }
 
 if {[llength $argv] == 0} {
