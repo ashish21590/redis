@@ -2243,6 +2243,7 @@ static void lremCommand(redisClient *c) {
                 robj *ele = listNodeValue(ln);
                 if (sdscmp(ele->ptr,c->argv[3]->ptr) == 0) {
                     listDelNode(list,ln);
+                    server.dirty++;
                     removed++;
                     if (toremove && removed == toremove) break;
                 }
