@@ -11,7 +11,7 @@ proc test {name code okpattern} {
         puts "PASSED"
         incr ::passed
     } else {
-        puts "!! ERROR expected '$okpattern' but got '$retval'"
+        puts "!! ERROR expected\n'$okpattern'\nbut got\n'$retval'"
         incr ::failed
     }
 }
@@ -433,27 +433,65 @@ proc main {server port} {
         redis_save $fd
     } {+OK}
     
-    if 0 {
     test {Create a random list} {
         set tosort {}
+        array set seenrand {}
         for {set i 0} {$i < 10000} {incr i} {
-            set r [expr rand()]
+            while 1 {
+                # Make sure all the weights are different because
+                # Redis does not use a stable sort but Tcl does.
+                set r [expr int(rand()*1000000)]
+                if {![info exists seenrand($r)]} break
+            }
+            set seenrand($r) x
             redis_lpush $fd tosort $i
             redis_set $fd weight_$i $r
             lappend tosort [list $i $r]
         }
         set sorted [lsort -index 1 -real $tosort]
         set res {}
-        for {set i 0} {$i < 20000} {incr i 2} {
-            lappend res [lindex $sorted $i]
+        for {set i 0} {$i < 10000} {incr i} {
+            lappend res [lindex $sorted $i 0]
         }
         format {}
     } {}
 
     test {SORT with BY against the newly created list} {
-        redis_sort $fd tosort {BY weight_*}
+        set sorted [redis_sort $fd tosort {BY weight_*}]
     } $res
-    }
+
+    test {SORT speed, sorting 10000 elements list using BY, 100 times} {
+        set start [clock clicks -milliseconds]
+        for {set i 0} {$i < 100} {incr i} {
+            set sorted [redis_sort $fd tosort {BY weight_* LIMIT 0 10}]
+        }
+        set elapsed [expr [clock clicks -milliseconds]-$start]
+        puts -nonewline "\n  Average time to sort: [expr double($elapsed)/100] milliseconds "
+        flush stdout
+        format {}
+    } {}
+
+    test {SORT speed, sorting 10000 elements list directly, 100 times} {
+        set start [clock clicks -milliseconds]
+        for {set i 0} {$i < 100} {incr i} {
+            set sorted [redis_sort $fd tosort {LIMIT 0 10}]
+        }
+        set elapsed [expr [clock clicks -milliseconds]-$start]
+        puts -nonewline "\n  Average time to sort: [expr double($elapsed)/100] milliseconds "
+        flush stdout
+        format {}
+    } {}
+
+    test {SORT speed, pseudo-sorting 10000 elements list, BY <const>, 100 times} {
+        set start [clock clicks -milliseconds]
+        for {set i 0} {$i < 100} {incr i} {
+            set sorted [redis_sort $fd tosort {BY nokey LIMIT 0 10}]
+        }
+        set elapsed [expr [clock clicks -milliseconds]-$start]
+        puts -nonewline "\n  Average time to sort: [expr double($elapsed)/100] milliseconds "
+        flush stdout
+        format {}
+    } {}
 
     # Leave the user with a clean DB before to exit
     test {FLUSHALL} {
