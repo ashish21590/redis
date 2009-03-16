@@ -1,9 +1,8 @@
-BETA 6 TODO
-- close connection after client command if server is in resync. Bind the next available port while resynching so that humans can telnet and issue commands.
+BETA 7 TODO
 - keys expire
 - sunion ssub
 - write integers in a special way on disk (and on memory?)
 - compact types for disk storing of short strings (no 4 bytes overhead!)
 - network layer stresser in test in demo
-
-SORT key [BY pattern] [GET|DEL|INCR|DECR pattern] [ASC|DESC] [LIMIT start count]
+- maxclients directive
+- check dirty everywere
