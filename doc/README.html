@@ -1,101 +1,349 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <html>
-  <head>
-    <title>README</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  </head>
-  <body>
-    <h1>Introduction</h1><p>Redis is a database. To be more specific redis is a very simple database implementing a dictionary where keys are associated with values. For example I can set the key &quot;surname_1992&quot; to the string &quot;Smith&quot;.</p><p>Redis takes the whole dataset in memory, but the dataset is persistent since from time to time Redis writes a dump of the dataset on disk. The dump is loaded every time the server is restarted.</p><p>This means that it can happen that after a system crash the last modifications of the dataset are lost, but it's the price to pay for a lot of speed. Redis is the right database for all the applications where it is acceptable after a crash that some modifications gets lost, but where speed is very important.</p><p>However you can configure Redis to save the DB after a given number of modifications and/or after a given amount of time since the last change in the dataset. Saving happens in background so the DB will continue to serve queries while it is saving the DB dump on disk.</p><p>Replication is under development in order to make Redis an highly available DB.</p><h1>How Redis differs from Memcached?</h1><p>Mainly in two ways:</p><ul><li>Memcached is not persistent, it just holds everything in memory without saving since its main goal is to be used as a cache. Redis instead can be used as the main DB for the application.</li></ul><ul><li>Like memcached Redis uses a key-value model, but while keys can just be strings, values in Redis can be lists and sets, and complex operations like intersections, set/get n-th element of lists, pop/push of elements, can be performed against sets and lists. It is possible to use lists as message queues.</li></ul><h1>Does Redis support locking?</h1><p>No, the idea is to provide atomic primitives in order to make the programmer able to use redis with locking free algorithms. For example imagine you have 10 computers and 1 redis server. You want to count words in a very large text. This large text is split among the 10 computers, every computer will process its part and use Redis's INCR command to atomically increment a counter for every occurrence of the word found.</p><p>INCR/DECR are not the only atomic primitives, there are others like PUSH/POP on lists, POP RANDOM KEY operations, UPDATE and so on. For example you can use Redis like a Tuple Space (http://en.wikipedia.org/wiki/Tuple_space) in order to implement distributed algorithms.</p><h1>Multiple databases support</h1><p>Another synchronization primitive is the support for multiple DBs. By default DB 0 is selected for every new connection, but using the SELECT command it is possible to select a different database. The MOVE operation can move an item from one DB to another atomically. This can be used as a base for locking free algorithms together with the 'RANDOMKEY' or 'POPRANDOMKEY' commands.</p><h1>Redis Data Types</h1><p>Redis supports the following three data types as values:</p><ul><li>Strings: just any sequence of bytes. Redis strings are binary safe so they can not just hold text, but images, compressed data and everything else.</li><li>Lists: lists of strings, with support for operations like append a new string on head, on tail, list length, obtain a range of elements, truncate the list to a given length, sort the list, and so on.</li><li>Sets: an unsorted set of strings. It is possible to add or delete elements from a set, to perform set intersection, union, subtraction, and so on.</li></ul><p>Values can be Strings, Lists or Sets. Keys can be a subset of strings not containing newlines (&quot;\n&quot;) and spaces (&quot; &quot;).</p><p>Note that sometimes strings may hold numeric vaules that must be parsed by Redis. An example is the INCR command that atomically increments the number stored at the specified key. In this case Redis is able to handle integers that can be stored inside a 'long long' type, that is a 64-bit signed integer.</p><h2>Implementation Details</h2><p>Strings are implemented as dynamically allocated strings of characters. Lists are implemented as doubly linked lists with cached length. Sets are implemented using hash tables that use chaining to resolve collisions.</p><h1>Redis Tutorial</h1><p>(note, you can skip this section if you are only interested in &quot;formal&quot; doc.)</p><p>Later in this document you can find detailed information about Redis commands, the protocol specification, and so on. This kind of documentation is useful but... if you are new to Redis it is also BORING! The Redis protocol is designed so that is both pretty efficient to be parsed by computers, but simple enough to be used by humans just poking around with the 'telnet' command, so this section will show to the reader how to play a bit with Redis to get an initial feeling about it, and how it works.</p><p>To start just compile redis with 'make' and start it with './redis-server'. The server will start and log stuff on the standard output, if you want it to log more edit redis.conf, set the loglevel to debug, and restart it.</p><p>You can specify a configuration file as unique parameter:</p><p>    ./redis-server /etc/redis.conf</p><p>This is NOT required. The server will start even without a configuration file using a default built-in configuration.</p><p>Now let's try to set a key to a given value:</p><pre>$ telnet localhost 6379
+    <head>
+        <link type="text/css" rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <div id="page">
+        
+            <div id='header'>
+            <a href="index.html">
+            <img style="border:none" alt="Redis Documentation" src="redis.png">
+            </a>
+            </div>
+        
+            <div id="pagecontent">
+                <div class="index">
+<!-- This is a (PRE) block.  Make sure it's left aligned or your toc title will be off. -->
+<b>README: Contents</b><br>&nbsp;&nbsp;<a href="#Introduction">Introduction</a><br>&nbsp;&nbsp;<a href="#How Redis differs from Memcached?">How Redis differs from Memcached?</a><br>&nbsp;&nbsp;<a href="#Does Redis support locking?">Does Redis support locking?</a><br>&nbsp;&nbsp;<a href="#Multiple databases support">Multiple databases support</a><br>&nbsp;&nbsp;<a href="#Redis Data Types">Redis Data Types</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Implementation Details">Implementation Details</a><br>&nbsp;&nbsp;<a href="#Redis Tutorial">Redis Tutorial</a><br>&nbsp;&nbsp;<a href="#Redis Commands Reference">Redis Commands Reference</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Connection handling">Connection handling</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#QUIT">QUIT</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on string values">Commands operating on string values</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SET _key_ _value_">SET _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#GET _key_">GET _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SETNX _key_ _value_">SETNX _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#INCR _key_">INCR _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#INCRBY _key_ _value_">INCRBY _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DECR _key_">DECR _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DECRBY _key_ _value_">DECRBY _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on every value">Commands operating on every value</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#EXISTS _key_">EXISTS _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DEL _key_">DEL _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#TYPE _key_">TYPE _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#KEYS _pattern_">KEYS _pattern_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RANDOMKEY">RANDOMKEY</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RENAME _oldkey_ _newkey_">RENAME _oldkey_ _newkey_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RENAMENX _oldkey_ _newkey_">RENAMENX _oldkey_ _newkey_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on lists">Commands operating on lists</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RPUSH _key_ _string_">RPUSH _key_ _string_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LPUSH _key_ _string_">LPUSH _key_ _string_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LLEN _key_">LLEN _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LRANGE _key_ _start_ _end_">LRANGE _key_ _start_ _end_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LTRIM _key_ _start_ _end_">LTRIM _key_ _start_ _end_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LINDEX _key_ _index_">LINDEX _key_ _index_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LSET _key_ _index_ _value_">LSET _key_ _index_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LREM _key_ _count_ _value_">LREM _key_ _count_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LPOP _key_">LPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RPOP _key_">RPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on sets">Commands operating on sets</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SADD _key_ _member_">SADD _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SREM _key_ _member_">SREM _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SCARD _key_">SCARD _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SISMEMBER _key_ _member_">SISMEMBER _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SINTER _key1_ _key2_ ... _keyN_">SINTER _key1_ _key2_ ... _keyN_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_">SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SMEMBERS _key_">SMEMBERS _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Multiple DB commands">Multiple DB commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SELECT _index_">SELECT _index_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#MOVE _key_ _dbindex_">MOVE _key_ _dbindex_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#FLUSHDB">FLUSHDB</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#FLUSHALL">FLUSHALL</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Sorting">Sorting</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA">SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Persistence control commands">Persistence control commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SAVE">SAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#BGSAVE">BGSAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LASTSAVE">LASTSAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SHUTDOWN">SHUTDOWN</a><br>&nbsp;&nbsp;<a href="#Protocol Specification">Protocol Specification</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Networking layer">Networking layer</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Simple INLINE commands">Simple INLINE commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Bulk commands">Bulk commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Bulk replies">Bulk replies</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Bulk reply error reporting">Bulk reply error reporting</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Multi-Bulk replies">Multi-Bulk replies</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Multi-Bulk replies errors">Multi-Bulk replies errors</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Status code reply">Status code reply</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Integer reply">Integer reply</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Single line reply">Single line reply</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Multiple commands and pipelining">Multiple commands and pipelining</a><br>&nbsp;&nbsp;<a href="#License">License</a><br>&nbsp;&nbsp;<a href="#Credits">Credits</a>
+                </div>
+                
+                <h1>README</h1>
+
+                <div class="summary">
+                    
+                </div>
+
+                <div class="narrow">
+                    <h1><a name="Introduction">Introduction</a></h1>Redis is a database. To be more specific redis is a very simple database
+implementing a dictionary where keys are associated with values. For example
+I can set the key &quot;surname_1992&quot; to the string &quot;Smith&quot;.<br/><br/>Redis takes the whole dataset in memory, but the dataset is persistent
+since from time to time Redis writes a dump of the dataset on disk. The dump
+is loaded every time the server is restarted.<br/><br/>This means that it can happen that after a system crash the last modifications
+of the dataset are lost, but it's the price to pay for a lot of speed.
+Redis is the right database for all the applications where it is acceptable
+after a crash that some modifications gets lost, but where speed is very
+important.<br/><br/>However you can configure Redis to save the DB after a given number of
+modifications and/or after a given amount of time since the last change
+in the dataset. Saving happens in background so the DB will continue to
+serve queries while it is saving the DB dump on disk.<br/><br/>Replication is under development in order to make Redis an highly available DB.<h1><a name="How Redis differs from Memcached?">How Redis differs from Memcached?</a></h1>Mainly in two ways:<br/><br/><ul><li> Memcached is not persistent, it just holds everything in memory without saving since its main goal is to be used as a cache. Redis instead can be used as the main DB for the application.</li></ul>
+<ul><li> Like memcached Redis uses a key-value model, but while keys can just be strings, values in Redis can be lists and sets, and complex operations like intersections, set/get n-th element of lists, pop/push of elements, can be performed against sets and lists. It is possible to use lists as message queues.</li></ul>
+<h1><a name="Does Redis support locking?">Does Redis support locking?</a></h1>No, the idea is to provide atomic primitives in order to make the programmer
+able to use redis with locking free algorithms. For example imagine you have
+10 computers and 1 redis server. You want to count words in a very large text.
+This large text is split among the 10 computers, every computer will process
+its part and use Redis's INCR command to atomically increment a counter
+for every occurrence of the word found.<br/><br/>INCR/DECR are not the only atomic primitives, there are others like PUSH/POP
+on lists, POP RANDOM KEY operations, UPDATE and so on. For example you can
+use Redis like a Tuple Space (<a href="http://en.wikipedia.org/wiki/Tuple_space" target="_blank">http://en.wikipedia.org/wiki/Tuple_space</a>) in
+order to implement distributed algorithms.<h1><a name="Multiple databases support">Multiple databases support</a></h1>Another synchronization primitive is the support for multiple DBs. By default DB 0 is selected for every new connection, but using the SELECT command it is possible to select a different database. The MOVE operation can move an item from one DB to another atomically. This can be used as a base for locking free algorithms together with the 'RANDOMKEY' or 'POPRANDOMKEY' commands.<h1><a name="Redis Data Types">Redis Data Types</a></h1>Redis supports the following three data types as values:<br/><br/><ul><li> Strings: just any sequence of bytes. Redis strings are binary safe so they can not just hold text, but images, compressed data and everything else.</li><li> Lists: lists of strings, with support for operations like append a new string on head, on tail, list length, obtain a range of elements, truncate the list to a given length, sort the list, and so on.</li><li> Sets: an unsorted set of strings. It is possible to add or delete elements from a set, to perform set intersection, union, subtraction, and so on.</li></ul>
+Values can be Strings, Lists or Sets. Keys can be a subset of strings not containing newlines (&quot;\n&quot;) and spaces (&quot; &quot;).<br/><br/>Note that sometimes strings may hold numeric vaules that must be parsed by
+Redis. An example is the INCR command that atomically increments the number
+stored at the specified key. In this case Redis is able to handle integers
+that can be stored inside a 'long long' type, that is a 64-bit signed integer.<h2><a name="Implementation Details">Implementation Details</a></h2>Strings are implemented as dynamically allocated strings of characters.
+Lists are implemented as doubly linked lists with cached length.
+Sets are implemented using hash tables that use chaining to resolve collisions.<h1><a name="Redis Tutorial">Redis Tutorial</a></h1>(note, you can skip this section if you are only interested in &quot;formal&quot; doc.)<br/><br/>Later in this document you can find detailed information about Redis commands,
+the protocol specification, and so on. This kind of documentation is useful
+but... if you are new to Redis it is also BORING! The Redis protocol is designed
+so that is both pretty efficient to be parsed by computers, but simple enough
+to be used by humans just poking around with the 'telnet' command, so this
+section will show to the reader how to play a bit with Redis to get an initial
+feeling about it, and how it works.<br/><br/>To start just compile redis with 'make' and start it with './redis-server'.
+The server will start and log stuff on the standard output, if you want
+it to log more edit redis.conf, set the loglevel to debug, and restart it.<br/><br/>You can specify a configuration file as unique parameter:<br/><br/><blockquote>./redis-server /etc/redis.conf</blockquote>
+This is NOT required. The server will start even without a configuration file
+using a default built-in configuration.<br/><br/>Now let's try to set a key to a given value:<br/><br/><pre class="codeblock python" name="code">
+$ telnet localhost 6379
 Trying 127.0.0.1...
 Connected to localhost.
 Escape character is '^]'.
 SET foo 3  
 bar
-+OK</pre><p>The first line we sent to the server is &quot;set foo 3&quot;. This means &quot;set the key foo with the following three bytes I'll send you&quot;. The following line is the &quot;bar&quot; string, that is, the three bytes. So the effect is to set the key &quot;foo&quot; to the value &quot;bar&quot;. Very simple!</p><p>(note that you can send commands in lowercase and it will work anyway, commands are not case sensitive)</p><p>Note that after the first and the second line we sent to the server there is a newline at the end. The server expects commands terminated by &quot;\r\n&quot; and sequence of bytes terminated by &quot;\r\n&quot;. This is a minimal overhead from the point of view of both the server and client but allows us to play with Redis with the telnet command easily.</p><p>The last line of the chat between server and client is &quot;+OK&quot;. This means our key was added without problems. Actually SET can never fail but the &quot;+OK&quot; sent lets us know that the server received everything and the command was actually executed.</p><p>Let's try to get the key content now:</p><pre>GET foo
++OK
+</pre>The first line we sent to the server is &quot;set foo 3&quot;. This means &quot;set the key
+foo with the following three bytes I'll send you&quot;. The following line is
+the &quot;bar&quot; string, that is, the three bytes. So the effect is to set the
+key &quot;foo&quot; to the value &quot;bar&quot;. Very simple!<br/><br/>(note that you can send commands in lowercase and it will work anyway,
+commands are not case sensitive)<br/><br/>Note that after the first and the second line we sent to the server there
+is a newline at the end. The server expects commands terminated by &quot;\r\n&quot;
+and sequence of bytes terminated by &quot;\r\n&quot;. This is a minimal overhead from
+the point of view of both the server and client but allows us to play with
+Redis with the telnet command easily.<br/><br/>The last line of the chat between server and client is &quot;+OK&quot;. This means
+our key was added without problems. Actually SET can never fail but
+the &quot;+OK&quot; sent lets us know that the server received everything and
+the command was actually executed.<br/><br/>Let's try to get the key content now:<br/><br/><pre class="codeblock python python" name="code">
+GET foo
 3
-bar</pre><p>Ok that's very similar to 'set', just the other way around. We sent &quot;get foo&quot;, the server replied with a first line that is just a number of bytes the value stored at key contained, followed by the actual bytes. Again &quot;\r\n&quot; are appended both to the bytes count and the actual data.</p><p>What about requesting a non existing key?</p><pre>GET blabla
-nil</pre><p>When the key does not exist instead of the length just the &quot;nil&quot; string is sent. Another way to check if a given key exists or not is indeed the EXISTS command:</p><pre>EXISTS nokey
+bar
+</pre>Ok that's very similar to 'set', just the other way around. We sent &quot;get foo&quot;,
+the server replied with a first line that is just a number of bytes the value
+stored at key contained, followed by the actual bytes. Again &quot;\r\n&quot; are appended
+both to the bytes count and the actual data.<br/><br/>What about requesting a non existing key?<br/><br/><pre class="codeblock python python python" name="code">
+GET blabla
+nil
+</pre>When the key does not exist instead of the length just the &quot;nil&quot; string is sent.
+Another way to check if a given key exists or not is indeed the EXISTS command:<br/><br/><pre class="codeblock python python python python" name="code">
+EXISTS nokey
 0
 EXISTS foo
-1</pre><p>As you can see the server replied '0' the first time since 'nokey' does not exist, and '1' for 'foo', a key that actually exists.</p><p>Ok... now you know the basics, read the &quot;REDIS COMMANDS REFERENCE&quot; section to learn all the commands supported by Redis and the &quot;PROTOCOL SPECIFICATION&quot; section for more details about the protocol used if you plan to implement one for a language missing a decent client implementation.</p><h1>Redis Commands Reference</h1><h2>Connection handling</h2><h3>QUIT</h3>
-Ask the server to silently close the connection.<p><strong>Return value: none</strong></p><h2>Commands operating on string values</h2><h3>SET <i>key</i> <i>value</i></h3>
-<i>Time complexity: O(1)</i><p> Set the string <i>value</i> as value of the <i>key</i>.  The string can't be longer than 1073741824 bytes (1 GB).</p><p><strong>Return value: status code reply</strong></p><h3>GET <i>key</i></h3>
-<i>Time complexity: O(1)</i><p> Get the value of the specified key. If the key  does not exist the special value 'nil' is returned.  If the value stored at <i>key</i> is not a string an error  is returned because GET can only handle string values.</p><p><strong>Return value: bluk reply</strong></p><h3>SETNX <i>key</i> <i>value</i></h3>
-<i>Time complexity: O(1)</i><p> SETNX works exactly like SET with the only difference that  if the key already exists no operation is performed.  SETNX actually means &quot;SET if Not eXists&quot;.</p><p>*Return value: integer reply, specifically: <pre>1 if the key was set 0 if the key was not set</pre> *</p><h3>INCR <i>key</i></h3>
-<h3>INCRBY <i>key</i> <i>value</i></h3>
-<i>Time complexity: O(1)</i><p> Increment the number stored at <i>key</i> by one. If the key does  not exist or contains a value of a wrong type, set the key to the  value of &quot;1&quot; (like if the previous value was zero).</p><p> INCRBY works just like INCR but instead to increment by 1 the  increment is <i>value</i>.</p><p><strong>Return value: integer reply</strong></p><h3>DECR <i>key</i></h3>
-<h3>DECRBY <i>key</i> <i>value</i></h3>
+1
+</pre>As you can see the server replied '0' the first time since 'nokey' does not
+exist, and '1' for 'foo', a key that actually exists.<br/><br/>Ok... now you know the basics, read the &quot;REDIS COMMANDS REFERENCE&quot; section to
+learn all the commands supported by Redis and the &quot;PROTOCOL SPECIFICATION&quot;
+section for more details about the protocol used if you plan to implement one
+for a language missing a decent client implementation.<h1><a name="Redis Commands Reference">Redis Commands Reference</a></h1><h2><a name="Connection handling">Connection handling</a></h2><h3><a name="QUIT">QUIT</a></h3>
+Ask the server to silently close the connection.<br/><br/><b>Return value: none</b><h2><a name="Commands operating on string values">Commands operating on string values</a></h2><h3><a name="SET _key_ _value_">SET _key_ _value_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Set the string <i>value</i> as value of the <i>key</i>.The string can't be longer than 1073741824 bytes (1 GB).</blockquote>
+<b>Return value: status code reply</b><h3><a name="GET _key_">GET _key_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Get the value of the specified key. If the keydoes not exist the special value 'nil' is returned.If the value stored at <i>key</i> is not a string an erroris returned because GET can only handle string values.</blockquote>
+<b>Return value: bluk reply</b><h3><a name="SETNX _key_ _value_">SETNX _key_ _value_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>SETNX works exactly like SET with the only difference thatif the key already exists no operation is performed.SETNX actually means &quot;SET if Not eXists&quot;.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python" name="code">
+1 if the key was set
+0 if the key was not set
+</pre>
+</b><h3><a name="INCR _key_">INCR _key_</a></h3>
+<h3><a name="INCRBY _key_ _value_">INCRBY _key_ _value_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Increment the number stored at <i>key</i> by one. If the key doesnot exist or contains a value of a wrong type, set the key to thevalue of &quot;1&quot; (like if the previous value was zero).</blockquote>
+<blockquote>INCRBY works just like INCR but instead to increment by 1 theincrement is <i>value</i>.</blockquote>
+<b>Return value: integer reply</b><h3><a name="DECR _key_">DECR _key_</a></h3>
+<h3><a name="DECRBY _key_ _value_">DECRBY _key_ _value_</a></h3>
 <i>Time complexity: O(1)</i>
- Like INCR/INCRBY but decrementing instead of incrementing.<h2>Commands operating on every value</h2><h3>EXISTS <i>key</i></h3>
-<i>Time complexity: O(1)</i><p> Test if the specified key exists. The command returns  &quot;0&quot; if the key exists, otherwise &quot;1&quot; is returned.  Note that even keys set with an empty string as value will  return &quot;1&quot;.</p><p>*Return value: integer reply, specifically: <pre>1 if the key exists 0 if the key does not exist</pre> *</p><h3>DEL <i>key</i></h3>
-<i>Time complexity: O(1)</i><p> Remove the specified key. If the key does not exist  no operation is performed. The command always returns success.</p><p>*Return value: integer reply, specifically: <pre>1 if the key was removed 0 if the key does not exist</pre> *</p><h3>TYPE <i>key</i></h3>
+<blockquote>Like INCR/INCRBY but decrementing instead of incrementing.</blockquote>
+<h2><a name="Commands operating on every value">Commands operating on every value</a></h2><h3><a name="EXISTS _key_">EXISTS _key_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Test if the specified key exists. The command returns&quot;0&quot; if the key exists, otherwise &quot;1&quot; is returned.Note that even keys set with an empty string as value willreturn &quot;1&quot;.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python" name="code">
+1 if the key exists
+0 if the key does not exist
+</pre>
+</b><h3><a name="DEL _key_">DEL _key_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Remove the specified key. If the key does not existno operation is performed. The command always returns success.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python" name="code">
+1 if the key was removed
+0 if the key does not exist
+</pre>
+</b><h3><a name="TYPE _key_">TYPE _key_</a></h3>
 <i>Time complexity: O(1)</i>
- Return the type of the value stored at <i>key</i> in form of a
- string. The type can be one of &quot;none&quot;, &quot;string&quot;, &quot;list&quot;, &quot;set&quot;.
- &quot;none&quot; is returned if the key does not exist.<p><strong>Return value: single line reply</strong></p><h3>KEYS <i>pattern</i></h3>
-<i>Time complexity: O(n) (with n being the number of keys in the DB)</i><p> Returns all the keys matching the glob-style <i>pattern</i> as  space separated strings. For example if you have in the  database the keys &quot;foo&quot; and &quot;foobar&quot; the command &quot;KEYS foo<code>*</code>&quot;  will return &quot;foo foobar&quot;.</p><p> Note that while the time complexity for this operation is O(n)  the constant times are pretty low. For example Redis running  on an entry level laptop can scan a 1 million keys database  in 40 milliseconds. Still it's better to consider this one of  the slow commands that may ruin the DB performance if not used  with care.</p><p><strong>Return value: bulk reply</strong></p><h3>RANDOMKEY</h3>
-<i>Time complexity: O(1)</i><p> Returns a random key from the currently seleted DB.</p><p><strong>Return value: single line reply</strong></p><h3>RENAME <i>oldkey</i> <i>newkey</i></h3>
-    Atomically renames the key <i>oldkey</i> to <i>newkey</i>. If the source and
-    destination name are the same an error is returned. If <i>newkey</i>
-    already exists it is overwritten.<p><strong>Return value: status code reply</strong></p><h3>RENAMENX <i>oldkey</i> <i>newkey</i></h3>
-    Just like RENAME but fails if the destination key <i>newkey</i>
-    already exists.<p>*Return value: integer reply, specifically: <pre>1 if the key was renamed 0 if the target key already exist -1 if the source key does not exist -3 if source and destination keys are the same</pre> *</p><h2>Commands operating on lists</h2><h3>RPUSH <i>key</i> <i>string</i></h3>
-<i>Time complexity: O(1)</i><p> Add the given string to the head of the list contained at key.  If the key does not exist an empty list is created just before  the append operation. If the key exists but is not a List an error  is returned.</p><p><strong>Return value: status code reply</strong></p><h3>LPUSH <i>key</i> <i>string</i></h3>
-<i>Time complexity: O(1)</i><p> Add the given string to the tail of the list contained at key.  If the key does not exist an empty list is created just before  the append operation. If the key exists but is not a List an error  is returned.</p><p><strong>Return value: status code reply</strong></p><h3>LLEN <i>key</i></h3>
-<i>Time complexity: O(1)</i><p> Return the length of the list stored at the specified key. If the  key does not exist zero is returned (the same behaviour as for  empty lists). If the value stored at key is not a list the special  value -2 is returned. Note: client library should raise an exception  when -2 is returned instead to pass the value back to the caller  like a normal list length value.</p><p>*Return value: integer reply, specifically: <pre>the length of the list as an integer</pre>&gt;=<pre>0 if the operation succeeded -2 if the specified key does not hold a list value</pre> *</p><h3>LRANGE <i>key</i> <i>start</i> <i>end</i></h3>
-<i>Time complexity: O(n) (with n being the length of the range)</i><p> Return the specified elements of the list stored at the specified  key. Start and end are zero-based indexes. 0 is the first element  of the list (the list head), 1 the next element and so on.</p><p> For example LRANGE foobar 0 2 will return the first three elements  of the list.</p><p> <i>start</i> and <i>end</i> can also be negative numbers indicating offsets  from the end of the list. For example -1 is the last element of  the list, -2 the penultimate element and so on.</p><p> Indexes out of range will not produce an error: if start is over  the end of the list, or start <code>&gt;</code> end, an empty list is returned.  If end is over the end of the list Redis will threat it just like  the last element of the list.</p><p><strong>Return value: multi bulk reply</strong></p><h3>LTRIM <i>key</i> <i>start</i> <i>end</i></h3>
-<i>Time complexity: O(n) (with n being len of list - len of range)</i><p> Trim an existing list so that it will contain only the specified  range of elements specified. Start and end are zero-based indexes.  0 is the first element of the list (the list head), 1 the next element  and so on.</p><p> For example LTRIM foobar 0 2 will modify the list stored at foobar  key so that only the first three elements of the list will remain.</p><p> <i>start</i> and <i>end</i> can also be negative numbers indicating offsets  from the end of the list. For example -1 is the last element of  the list, -2 the penultimate element and so on.</p><p> Indexes out of range will not produce an error: if start is over  the end of the list, or start &gt; end, an empty list is left as value.  If end over the end of the list Redis will threat it just like  the last element of the list.</p><p> Hint: the obvious use of LTRIM is together with LPUSH/RPUSH. For example: <pre>LPUSH mylist &lt;someelement&gt;         LTRIM mylist 0 99</pre>  The above two commands will push elements in the list taking care that  the list will not grow without limits. This is very useful when using  Redis to store logs for example. It is important to note that when used  in this way LTRIM is an O(1) operation because in the average case  just one element is removed from the tail of the list.</p><p><strong>Return value: status code reply</strong></p><h3>LINDEX <i>key</i> <i>index</i></h3>
-<i>Time complexity: O(n) (with n being the length of the list)</i><p> Return the specified element of the list stored at the specified  key. 0 is the first element, 1 the second and so on. Negative indexes  are supported, for example -1 is the last element, -2 the penultimate  and so on.</p><p> If the value stored at key is not of list type an error is returned.  If the index is out of range an empty string is returned.</p><p> Note that even if the average time complexity is O(n) asking for  the first or the last element of the list is O(1).</p><p><strong>Return value: bulk reply</strong></p><h3>LSET <i>key</i> <i>index</i> <i>value</i></h3>
-<i>Time complexity: O(N) (with N being the length of the list)</i><p> Set the list element at <i>index</i> (see LINDEX for information about the  <i>index</i> argument) with the new <i>value</i>. Out of range indexes will  generate an error. Note that setting the first or last elements of  the list is O(1).</p><p><strong>Return value: status code reply</strong></p><h3>LREM <i>key</i> <i>count</i> <i>value</i></h3>
-<i>Time complexity: O(N) (with N being the length of the list)</i><p> Remove the first <i>count</i> occurrences of the <i>value</i> element from the list.  If <i>count</i> is zero all the elements are removed. If <i>count</i> is negative  elements are removed from tail to head, instead to go from head to tail  that is the normal behaviour. So for example LREM with count -2 and  <i>hello</i> as value to remove against the list (a,b,c,hello,x,hello,hello) will  lave the list (a,b,c,hello,x). The number of removed elements is returned  as an integer, see below for more information aboht the returned value.</p><p>*Return value: integer reply, specifically: <pre>The number of removed elements if the operation succeeded -1 if the specified key does not exist -2 if the specified key does not hold a list value</pre> *</p><h3>LPOP <i>key</i></h3>
-<i>Time complexity: O(1)</i><p> Atomically return and remove the first element of the list.  For example if the list contains the elements &quot;a&quot;,&quot;b&quot;,&quot;c&quot; LPOP  will return &quot;a&quot; and the list will become &quot;b&quot;,&quot;c&quot;.</p><p> If the <i>key</i> does not exist or the list is already empty the special  value 'nil' is returned.</p><p><strong>Return value: bulk reply</strong></p><h3>RPOP <i>key</i></h3>
-    This command works exactly like LPOP, but the last element instead
-    of the first element of the list is returned/deleted.<h2>Commands operating on sets</h2><h3>SADD <i>key</i> <i>member</i></h3>
-<i>Time complexity O(1)</i><p> Add the specified <i>member</i> to the set value stored at <i>key</i>. If <i>member</i>  is already a member of the set no operation is performed. If <i>key</i>  does not exist a new set with the specified <i>member</i> as sole member is  crated. If the key exists but does not hold a set value an error is  returned.</p><p>*Return value: integer reply, specifically: <pre>1 if the new element was added 0 if the new element was already a member of the set -2 if the key contains a non set value</pre> *</p><h3>SREM <i>key</i> <i>member</i></h3>
-<i>Time complexity O(1)</i><p> Remove the specified <i>member</i> from the set value stored at <i>key</i>. If  <i>member</i> was not a member of the set no operation is performed. If <i>key</i>  does not exist or does not hold a set value an error is returned.</p><p>*Return value: integer reply, specifically: <pre>1 if the new element was removed 0 if the new element was not a member of the set -2 if the key does not hold a set value</pre> *</p><h3>SCARD <i>key</i></h3>
-<i>Time complexity O(1)</i><p> Return the set cardinality (number of elements). If the <i>key</i> does not  exist 0 is returned, like for empty sets. If the <i>key</i> does not hold  a set value -1 is returned. Client libraries should raise an error  when -1 is returned instead to pass the value to the caller.</p><p>*Return value: integer reply, specifically: <pre>the cardinality (number of elements) of the set as an integer</pre>&gt;=<pre>0 if the operation succeeded -2 if the specified key does not hold a set value</pre> *</p><h3>SISMEMBER <i>key</i> <i>member</i></h3>
-<i>Time complexity O(1)</i><p> Return 1 if <i>member</i> is a member of the set stored at <i>key</i>, otherwise  0 is returned. On error a negative value is returned. Client libraries  should raise an error when a negative value is returned instead to pass  the value to the caller.</p><p>*Return value: integer reply, specifically: <pre>1 if the element is a member of the set 0 if the element is not a member of the set OR if the key does not exist -2 if the key does not hold a set value</pre> *</p><h3>SINTER <i>key1</i> <i>key2</i> ... <i>keyN</i></h3>
-<i>Time complexity O(N*M) worst case where N is the cardinality of the smallest set and M the number of sets</i><p> Return the members of a set resulting from the intersection of all the  sets hold at the specified keys. Like in LRANGE the result is sent to  the client as a multi-bulk reply (see the protocol specification for  more information). If just a single key is specified, then this command  produces the same result as SELEMENTS. Actually SELEMENTS is just syntax  sugar for SINTERSECT.</p><p> If at least one of the specified keys does not exist or does not hold  a set value an error is returned.</p><p><strong>Return value: multi bulk reply</strong></p><h3>SINTERSTORE <i>dstkey</i> <i>key1</i> <i>key2</i> ... <i>keyN</i></h3>
-<i>Time complexity O(N*M) worst case where N is the cardinality of the smallest set and M the number of sets</i><p> This commnad works exactly like SINTER but instead of being returned the resulting set is sotred as <i>dstkey</i>.</p><p><strong>Return value: status code reply</strong></p><h3>SMEMBERS <i>key</i></h3>
-<i>Time complexity O(N)</i><p> Return all the members (elements) of the set value stored at <i>key</i>. This  is just syntax glue for SINTERSECT.</p><h2>Multiple DB commands</h2><h3>SELECT <i>index</i></h3>
- Select the DB with having the specified zero-based numeric index.
- For default every new client connection is automatically selected
- to DB 0.<p><strong>Return value: status code reply</strong></p><h3>MOVE <i>key</i> <i>dbindex</i></h3>
- Move the specified key from the currently selected DB to the specified
- destination DB. Note that this command returns 1 only if the key was
- successfully moved, and 0 if the target key was already there or if the
- source key was not found at all, so it is possible to use MOVE as a locking
- primitive.<p>*Return value: integer reply, specifically: <pre>1 if the key was moved 0 if the key was not moved because already present on the target DB or was not found in the current DB. -3 if the destination DB is the same as the source DB -4 if the database index if out of range</pre> *</p><h3>FLUSHDB</h3>
- Delete all the keys of the currently selected DB. This command never fails.<p><strong>Return value: status code reply</strong></p><h3>FLUSHALL</h3>
- Delete all the keys of all the existing databases, not just the currently selected one. This command never fails.<p><strong>Return value: status code reply</strong></p><h2>Sorting</h2><h3>SORT <i>key</i> BY <i>pattern</i> LIMIT <i>start</i> <i>end</i> GET <i>pattern</i> ASC|DESC ALPHA</h3>
-    Sort the elements contained in the List or Set value at <i>key</i>. By default
-    sorting is numeric with elements being compared as double precision
-    floating point numbers. This is the simplest form of SORT.<pre>SORT mylist</pre><p>    Assuming mylist contains a list of numbers, the return value will be     the list of numbers ordered from the smallest to the bigger number.     In order to get the sorting in reverse order use DESC:</p><pre>SORT mylist DESC</pre><p>    ASC is also supported but it's the default so you don't really need it.     If you want to sort lexicographically use ALPHA. Note that Redis is     utf-8 aware assuming you set the right value for the LC_COLLATE     environment variable.</p><p>    Sort is able to limit the number of results using the LIMIT option:</p><pre>SORT mylist LIMIT 0 10</pre><p>    In the above example SORT will return only 10 elements, starting from     the first one (star is zero-based). Almost all the sort options can     be mixed together. For example:</p><pre>SORT mylist LIMIT 0 10 ALPHA DESC</pre><p>    Will sort <i>mylist</i> lexicographically, in descending order, returning only     the first 10 elements.</p><p>    Sometimes you want to sort elements using external keys as weights to     compare instead to compare the actual List or Set elements. For example     the list <i>mylist</i> may contain the elements 1, 2, 3, 4, that are just     the unique IDs of objects stored at object<i>1, object</i>2, object_3     and object<i>4, while the keys weight</i>1, weight<i>2, weight</i>3 and weight_4     can contain weights we want to use to sort the list of objects     identifiers. We can use the following command:</p><pre>SORT mylist BY weight_*</pre><p>    the BY option takes a pattern (<code>weight_*</code> in our example) that is used     in order to generate the key names of the weights used for sorting.     Weight key names are obtained substituting the first occurrence of <code>*</code>     with the actual value of the elements on the list (1,2,3,4 in our example).</p><p>    Still our previous example will return just the sorted IDs. Often it is     needed to get the actual objects sorted (object<i>1, ..., object</i>4 in the     example). We can do it with the following command:</p><pre>SORT mylist BY weight_* GET object_*</pre><p>    Note that GET can be used multiple times in order to get more keys for     every element of the original List or Set sorted.</p><p><strong>Return value: multi bulk reply</strong></p><h2>Persistence control commands</h2><h3>SAVE</h3>
-    Save the DB on disk. The server hangs while the saving is not
-    completed, no connection is served in the meanwhile. An OK code
-    is returned when the DB was fully stored in disk.<p><strong>Return value: status code reply</strong></p><h3>BGSAVE</h3>
-    Save the DB in background. The OK code is immediately returned.
-    Redis forks, the parent continues to server the clients, the child
-    saves the DB on disk then exit. A client my be able to check if the
-    operation succeeded using the LASTSAVE command.<p><strong>Return value: status code reply</strong></p><h3>LASTSAVE</h3>
-    Return the UNIX TIME of the last DB save executed with success.
-    A client may check if a BGSAVE command succeeded reading the LASTSAVE
-    value, then issuing a BGSAVE command and checking at regular intervals
-    every N seconds if LASTSAVE changed.<p><strong>Return value: integer reply (UNIX timestamp)</strong></p><h3>SHUTDOWN</h3>
-    Stop all the clients, save the DB, then quit the server. This commands
-    makes sure that the DB is switched off without the lost of any data.
-    This is not guaranteed if the client uses simply &quot;SAVE&quot; and then
-    &quot;QUIT&quot; because other clients may alter the DB data between the two
-    commands.<p><strong>Return value: status code reply on error, on success the server quits and the connection is closed</strong></p><h1>Protocol Specification</h1><p>The Redis protocol is a compromise between being easy to parse by a computer and being easy to parse by an human. Before reading this section you are strongly encouraged to read the &quot;REDIS TUTORIAL&quot; section of this README in order to get a first feeling of the protocol playing with it by TELNET.</p><h2>Networking layer</h2><p>A client connects to a Redis server creating a TCP connection to the port 6973. Every redis command or data transmitted by the client and the server is terminated by &quot;\r\n&quot; (CRLF).</p><h2>Simple INLINE commands</h2><p>The simplest commands are the inline commands. This is an example of a server/client chat (the server chat starts with S:, the client chat with C:)</p><pre>C: PING
-S: +PONG</pre><p>An inline command is a CRLF-terminated string sent to the client. The server usually replies to inline commands with a single line that can be a number or a return code.</p><p>When the server replies with a status code (that is a one line reply just indicating if the operation succeeded or not), if the first character of the reply is a &quot;+&quot; then the command succeeded, if it is a &quot;-&quot; then the following part of the string is an error.</p><p>The following is another example of an INLINE command returning an integer:</p><pre>C: EXISTS somekey
-S: 0</pre><p>Since 'somekey' does not exist the server returned '0'.</p><p>Note that the EXISTS command takes one argument. Arguments are separated simply by spaces.</p><h2>Bulk commands</h2><p>A bulk command is exactly like an inline command, but the last argument of the command must be a stream of bytes in order to send data to the server. the &quot;SET&quot; command is a bulk command, see the following example:</p><pre>C: SET mykey 6
+<blockquote>Return the type of the value stored at <i>key</i> in form of astring. The type can be one of &quot;none&quot;, &quot;string&quot;, &quot;list&quot;, &quot;set&quot;.&quot;none&quot; is returned if the key does not exist.</blockquote>
+<b>Return value: single line reply</b><h3><a name="KEYS _pattern_">KEYS _pattern_</a></h3>
+<i>Time complexity: O(n) (with n being the number of keys in the DB)</i><blockquote>Returns all the keys matching the glob-style <i>pattern</i> asspace separated strings. For example if you have in thedatabase the keys &quot;foo&quot; and &quot;foobar&quot; the command &quot;KEYS foo<code name="code" class="python">*</code>&quot;will return &quot;foo foobar&quot;.</blockquote>
+<blockquote>Note that while the time complexity for this operation is O(n)the constant times are pretty low. For example Redis runningon an entry level laptop can scan a 1 million keys databasein 40 milliseconds. Still it's better to consider this one ofthe slow commands that may ruin the DB performance if not usedwith care.</blockquote>
+<b>Return value: bulk reply</b><h3><a name="RANDOMKEY">RANDOMKEY</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Returns a random key from the currently seleted DB.</blockquote>
+<b>Return value: single line reply</b><h3><a name="RENAME _oldkey_ _newkey_">RENAME _oldkey_ _newkey_</a></h3>
+<blockquote>Atomically renames the key <i>oldkey</i> to <i>newkey</i>. If the source anddestination name are the same an error is returned. If <i>newkey</i>already exists it is overwritten.</blockquote>
+<b>Return value: status code reply</b><h3><a name="RENAMENX _oldkey_ _newkey_">RENAMENX _oldkey_ _newkey_</a></h3>
+<blockquote>Just like RENAME but fails if the destination key <i>newkey</i>already exists.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python" name="code">
+1 if the key was renamed
+0 if the target key already exist
+-1 if the source key does not exist
+-3 if source and destination keys are the same
+</pre>
+</b><h2><a name="Commands operating on lists">Commands operating on lists</a></h2><h3><a name="RPUSH _key_ _string_">RPUSH _key_ _string_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Add the given string to the head of the list contained at key.If the key does not exist an empty list is created just beforethe append operation. If the key exists but is not a List an erroris returned.</blockquote>
+<b>Return value: status code reply</b><h3><a name="LPUSH _key_ _string_">LPUSH _key_ _string_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Add the given string to the tail of the list contained at key.If the key does not exist an empty list is created just beforethe append operation. If the key exists but is not a List an erroris returned.</blockquote>
+<b>Return value: status code reply</b><h3><a name="LLEN _key_">LLEN _key_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Return the length of the list stored at the specified key. If thekey does not exist zero is returned (the same behaviour as forempty lists). If the value stored at key is not a list the specialvalue -2 is returned. Note: client library should raise an exceptionwhen -2 is returned instead to pass the value back to the callerlike a normal list length value.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python" name="code">
+the length of the list as an integer `&gt;=` 0 if the operation succeeded
+-2 if the specified key does not hold a list value
+</pre>
+</b><h3><a name="LRANGE _key_ _start_ _end_">LRANGE _key_ _start_ _end_</a></h3>
+<i>Time complexity: O(n) (with n being the length of the range)</i><blockquote>Return the specified elements of the list stored at the specifiedkey. Start and end are zero-based indexes. 0 is the first elementof the list (the list head), 1 the next element and so on.</blockquote>
+<blockquote>For example LRANGE foobar 0 2 will return the first three elementsof the list.</blockquote>
+<blockquote>_start_ and <i>end</i> can also be negative numbers indicating offsetsfrom the end of the list. For example -1 is the last element ofthe list, -2 the penultimate element and so on.</blockquote>
+<blockquote>Indexes out of range will not produce an error: if start is overthe end of the list, or start <code name="code" class="python">&gt;</code> end, an empty list is returned.If end is over the end of the list Redis will threat it just likethe last element of the list.</blockquote>
+<b>Return value: multi bulk reply</b><h3><a name="LTRIM _key_ _start_ _end_">LTRIM _key_ _start_ _end_</a></h3>
+<i>Time complexity: O(n) (with n being len of list - len of range)</i><blockquote>Trim an existing list so that it will contain only the specifiedrange of elements specified. Start and end are zero-based indexes.0 is the first element of the list (the list head), 1 the next elementand so on.</blockquote>
+<blockquote>For example LTRIM foobar 0 2 will modify the list stored at foobarkey so that only the first three elements of the list will remain.</blockquote>
+<blockquote>_start_ and <i>end</i> can also be negative numbers indicating offsetsfrom the end of the list. For example -1 is the last element ofthe list, -2 the penultimate element and so on.</blockquote>
+<blockquote>Indexes out of range will not produce an error: if start is overthe end of the list, or start &gt; end, an empty list is left as value.If end over the end of the list Redis will threat it just likethe last element of the list.</blockquote>
+<blockquote>Hint: the obvious use of LTRIM is together with LPUSH/RPUSH. For example:</blockquote><pre class="codeblock python python python python python python python python python python" name="code">
+        LPUSH mylist &lt;someelement&gt;
+        LTRIM mylist 0 99
+</pre>
+<blockquote>The above two commands will push elements in the list taking care thatthe list will not grow without limits. This is very useful when usingRedis to store logs for example. It is important to note that when usedin this way LTRIM is an O(1) operation because in the average casejust one element is removed from the tail of the list.</blockquote>
+<b>Return value: status code reply</b><h3><a name="LINDEX _key_ _index_">LINDEX _key_ _index_</a></h3>
+<i>Time complexity: O(n) (with n being the length of the list)</i><blockquote>Return the specified element of the list stored at the specifiedkey. 0 is the first element, 1 the second and so on. Negative indexesare supported, for example -1 is the last element, -2 the penultimateand so on.</blockquote>
+<blockquote>If the value stored at key is not of list type an error is returned.If the index is out of range an empty string is returned.</blockquote>
+<blockquote>Note that even if the average time complexity is O(n) asking forthe first or the last element of the list is O(1).</blockquote>
+<b>Return value: bulk reply</b><h3><a name="LSET _key_ _index_ _value_">LSET _key_ _index_ _value_</a></h3>
+<i>Time complexity: O(N) (with N being the length of the list)</i><blockquote>Set the list element at <i>index</i> (see LINDEX for information about the_index_ argument) with the new <i>value</i>. Out of range indexes willgenerate an error. Note that setting the first or last elements ofthe list is O(1).</blockquote>
+<b>Return value: status code reply</b><h3><a name="LREM _key_ _count_ _value_">LREM _key_ _count_ _value_</a></h3>
+<i>Time complexity: O(N) (with N being the length of the list)</i><blockquote>Remove the first <i>count</i> occurrences of the <i>value</i> element from the list.If <i>count</i> is zero all the elements are removed. If <i>count</i> is negativeelements are removed from tail to head, instead to go from head to tailthat is the normal behaviour. So for example LREM with count -2 and_hello_ as value to remove against the list (a,b,c,hello,x,hello,hello) willlave the list (a,b,c,hello,x). The number of removed elements is returnedas an integer, see below for more information aboht the returned value.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python python python" name="code">
+The number of removed elements if the operation succeeded
+-1 if the specified key does not exist
+-2 if the specified key does not hold a list value
+</pre>
+</b><h3><a name="LPOP _key_">LPOP _key_</a></h3>
+<i>Time complexity: O(1)</i><blockquote>Atomically return and remove the first element of the list.For example if the list contains the elements &quot;a&quot;,&quot;b&quot;,&quot;c&quot; LPOPwill return &quot;a&quot; and the list will become &quot;b&quot;,&quot;c&quot;.</blockquote>
+<blockquote>If the <i>key</i> does not exist or the list is already empty the specialvalue 'nil' is returned.</blockquote>
+<b>Return value: bulk reply</b><h3><a name="RPOP _key_">RPOP _key_</a></h3>
+<blockquote>This command works exactly like LPOP, but the last element insteadof the first element of the list is returned/deleted.</blockquote>
+<h2><a name="Commands operating on sets">Commands operating on sets</a></h2><h3><a name="SADD _key_ _member_">SADD _key_ _member_</a></h3>
+<i>Time complexity O(1)</i><blockquote>Add the specified <i>member</i> to the set value stored at <i>key</i>. If <i>member</i>is already a member of the set no operation is performed. If <i>key</i>does not exist a new set with the specified <i>member</i> as sole member iscrated. If the key exists but does not hold a set value an error isreturned.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python python python python" name="code">
+1 if the new element was added
+0 if the new element was already a member of the set
+-2 if the key contains a non set value
+</pre>
+</b><h3><a name="SREM _key_ _member_">SREM _key_ _member_</a></h3>
+<i>Time complexity O(1)</i><blockquote>Remove the specified <i>member</i> from the set value stored at <i>key</i>. If_member_ was not a member of the set no operation is performed. If <i>key</i>does not exist or does not hold a set value an error is returned.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python python python python python" name="code">
+1 if the new element was removed
+0 if the new element was not a member of the set
+-2 if the key does not hold a set value
+</pre>
+</b><h3><a name="SCARD _key_">SCARD _key_</a></h3>
+<i>Time complexity O(1)</i><blockquote>Return the set cardinality (number of elements). If the <i>key</i> does notexist 0 is returned, like for empty sets. If the <i>key</i> does not holda set value -1 is returned. Client libraries should raise an errorwhen -1 is returned instead to pass the value to the caller.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python python python python python python" name="code">
+the cardinality (number of elements) of the set as an integer `&gt;=` 0 if the operation succeeded
+-2 if the specified key does not hold a set value
+</pre>
+</b><h3><a name="SISMEMBER _key_ _member_">SISMEMBER _key_ _member_</a></h3>
+<i>Time complexity O(1)</i><blockquote>Return 1 if <i>member</i> is a member of the set stored at <i>key</i>, otherwise0 is returned. On error a negative value is returned. Client librariesshould raise an error when a negative value is returned instead to passthe value to the caller.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python python python python python python python" name="code">
+1 if the element is a member of the set
+0 if the element is not a member of the set OR if the key does not exist
+-2 if the key does not hold a set value
+</pre>
+</b><h3><a name="SINTER _key1_ _key2_ ... _keyN_">SINTER _key1_ _key2_ ... _keyN_</a></h3>
+<i>Time complexity O(N<b>M) worst case where N is the cardinality of the smallest set and M the number of sets_<br/><br/><blockquote>Return the members of a set resulting from the intersection of all thesets hold at the specified keys. Like in LRANGE the result is sent tothe client as a multi-bulk reply (see the protocol specification formore information). If just a single key is specified, then this commandproduces the same result as SELEMENTS. Actually SELEMENTS is just syntaxsugar for SINTERSECT.</blockquote>
+<blockquote>If at least one of the specified keys does not exist or does not holda set value an error is returned.</blockquote>
+</b>Return value: multi bulk reply<b><h3><a name="SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_">SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_</a></h3>
+_Time complexity O(N</b>M) worst case where N is the cardinality of the smallest set and M the number of sets</i><blockquote>This commnad works exactly like SINTER but instead of being returned the resulting set is sotred as <i>dstkey</i>.</blockquote>
+<b>Return value: status code reply</b><h3><a name="SMEMBERS _key_">SMEMBERS _key_</a></h3>
+<i>Time complexity O(N)</i><blockquote>Return all the members (elements) of the set value stored at <i>key</i>. Thisis just syntax glue for SINTERSECT.</blockquote>
+<h2><a name="Multiple DB commands">Multiple DB commands</a></h2><h3><a name="SELECT _index_">SELECT _index_</a></h3>
+<blockquote>Select the DB with having the specified zero-based numeric index.For default every new client connection is automatically selectedto DB 0.</blockquote>
+<b>Return value: status code reply</b><h3><a name="MOVE _key_ _dbindex_">MOVE _key_ _dbindex_</a></h3>
+<blockquote>Move the specified key from the currently selected DB to the specifieddestination DB. Note that this command returns 1 only if the key wassuccessfully moved, and 0 if the target key was already there or if thesource key was not found at all, so it is possible to use MOVE as a lockingprimitive.</blockquote>
+<b>Return value: integer reply, specifically:
+<pre class="codeblock python python python python python python python python python python python python python python python python" name="code">
+1 if the key was moved
+0 if the key was not moved because already present on the target DB or was not found in the current DB.
+-3 if the destination DB is the same as the source DB
+-4 if the database index if out of range
+</pre>
+</b><h3><a name="FLUSHDB">FLUSHDB</a></h3>
+<blockquote>Delete all the keys of the currently selected DB. This command never fails.</blockquote>
+<b>Return value: status code reply</b><h3><a name="FLUSHALL">FLUSHALL</a></h3>
+<blockquote>Delete all the keys of all the existing databases, not just the currently selected one. This command never fails.</blockquote>
+<b>Return value: status code reply</b><h2><a name="Sorting">Sorting</a></h2><h3><a name="SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA">SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA</a></h3>
+<blockquote>Sort the elements contained in the List or Set value at <i>key</i>. By defaultsorting is numeric with elements being compared as double precisionfloating point numbers. This is the simplest form of SORT.</blockquote>
+<pre class="codeblock python python python python python python python python python python python python python python python python python" name="code">
+SORT mylist
+</pre><blockquote>Assuming mylist contains a list of numbers, the return value will bethe list of numbers ordered from the smallest to the bigger number.In order to get the sorting in reverse order use DESC:</blockquote>
+<pre class="codeblock python python python python python python python python python python python python python python python python python python" name="code">
+SORT mylist DESC
+</pre><blockquote>ASC is also supported but it's the default so you don't really need it.If you want to sort lexicographically use ALPHA. Note that Redis isutf-8 aware assuming you set the right value for the LC_COLLATEenvironment variable.</blockquote>
+<blockquote>Sort is able to limit the number of results using the LIMIT option:</blockquote>
+<pre class="codeblock python python python python python python python python python python python python python python python python python python python" name="code">
+SORT mylist LIMIT 0 10
+</pre><blockquote>In the above example SORT will return only 10 elements, starting fromthe first one (star is zero-based). Almost all the sort options canbe mixed together. For example:</blockquote>
+<pre class="codeblock python python python python python python python python python python python python python python python python python python python python" name="code">
+SORT mylist LIMIT 0 10 ALPHA DESC
+</pre><blockquote>Will sort <i>mylist</i> lexicographically, in descending order, returning onlythe first 10 elements.</blockquote>
+<blockquote>Sometimes you want to sort elements using external keys as weights tocompare instead to compare the actual List or Set elements. For examplethe list <i>mylist</i> may contain the elements 1, 2, 3, 4, that are justthe unique IDs of objects stored at object_1, object_2, object_3and object_4, while the keys weight_1, weight_2, weight_3 and weight_4can contain weights we want to use to sort the list of objectsidentifiers. We can use the following command:</blockquote>
+<pre class="codeblock python python python python python python python python python python python python python python python python python python python python python" name="code">
+SORT mylist BY weight_*
+</pre><blockquote>the BY option takes a pattern (<code name="code" class="python">weight_*</code> in our example) that is usedin order to generate the key names of the weights used for sorting.Weight key names are obtained substituting the first occurrence of <code name="code" class="python">*</code>with the actual value of the elements on the list (1,2,3,4 in our example).</blockquote>
+<blockquote>Still our previous example will return just the sorted IDs. Often it isneeded to get the actual objects sorted (object_1, ..., object_4 in theexample). We can do it with the following command:</blockquote>
+<pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python" name="code">
+SORT mylist BY weight_* GET object_*
+</pre><blockquote>Note that GET can be used multiple times in order to get more keys forevery element of the original List or Set sorted.</blockquote>
+<b>Return value: multi bulk reply</b><h2><a name="Persistence control commands">Persistence control commands</a></h2><h3><a name="SAVE">SAVE</a></h3>
+<blockquote>Save the DB on disk. The server hangs while the saving is notcompleted, no connection is served in the meanwhile. An OK codeis returned when the DB was fully stored in disk.</blockquote>
+<b>Return value: status code reply</b><h3><a name="BGSAVE">BGSAVE</a></h3>
+<blockquote>Save the DB in background. The OK code is immediately returned.Redis forks, the parent continues to server the clients, the childsaves the DB on disk then exit. A client my be able to check if theoperation succeeded using the LASTSAVE command.</blockquote>
+<b>Return value: status code reply</b><h3><a name="LASTSAVE">LASTSAVE</a></h3>
+<blockquote>Return the UNIX TIME of the last DB save executed with success.A client may check if a BGSAVE command succeeded reading the LASTSAVEvalue, then issuing a BGSAVE command and checking at regular intervalsevery N seconds if LASTSAVE changed.</blockquote>
+<b>Return value: integer reply (UNIX timestamp)</b><h3><a name="SHUTDOWN">SHUTDOWN</a></h3>
+<blockquote>Stop all the clients, save the DB, then quit the server. This commandsmakes sure that the DB is switched off without the lost of any data.This is not guaranteed if the client uses simply &quot;SAVE&quot; and then&quot;QUIT&quot; because other clients may alter the DB data between the twocommands.</blockquote>
+<b>Return value: status code reply on error, on success the server quits and the connection is closed</b><h1><a name="Protocol Specification">Protocol Specification</a></h1>The Redis protocol is a compromise between being easy to parse by a computer
+and being easy to parse by an human. Before reading this section you are
+strongly encouraged to read the &quot;REDIS TUTORIAL&quot; section of this README in order
+to get a first feeling of the protocol playing with it by TELNET.<h2><a name="Networking layer">Networking layer</a></h2>A client connects to a Redis server creating a TCP connection to the port 6973.
+Every redis command or data transmitted by the client and the server is
+terminated by &quot;\r\n&quot; (CRLF).<h2><a name="Simple INLINE commands">Simple INLINE commands</a></h2>The simplest commands are the inline commands. This is an example of a
+server/client chat (the server chat starts with S:, the client chat with C:)<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: PING
+S: +PONG
+</pre>An inline command is a CRLF-terminated string sent to the client. The server
+usually replies to inline commands with a single line that can be a number
+or a return code.<br/><br/>When the server replies with a status code (that is a one line reply just indicating if the operation succeeded or not), if the first character of the
+reply is a &quot;+&quot; then the command succeeded, if it is a &quot;-&quot; then the following
+part of the string is an error.<br/><br/>The following is another example of an INLINE command returning an integer:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: EXISTS somekey
+S: 0
+</pre>Since 'somekey' does not exist the server returned '0'.<br/><br/>Note that the EXISTS command takes one argument. Arguments are separated
+simply by spaces.<h2><a name="Bulk commands">Bulk commands</a></h2>A bulk command is exactly like an inline command, but the last argument
+of the command must be a stream of bytes in order to send data to the server.
+the &quot;SET&quot; command is a bulk command, see the following example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: SET mykey 6
 C: foobar
-S: +OK</pre><p>The last argument of the commnad is '6'. This specify the number of DATA bytes that will follow (note that even this bytes are terminated by two additional bytes of CRLF).</p><p>All the bulk commands are in this exact form: instead of the last argument the number of bytes that will follow is specified, followed by the bytes, and CRLF. In order to be more clear for the programmer this is the string sent by the client in the above sample:</p><p>    &quot;SET mykey 6\r\nfoobar\r\n&quot;</p><h2>Bulk replies</h2><p>The server may reply to an inline or bulk command with a bulk reply. See the following example:</p><pre>C: GET mykey
+S: +OK
+</pre>The last argument of the commnad is '6'. This specify the number of DATA
+bytes that will follow (note that even this bytes are terminated by two
+additional bytes of CRLF).<br/><br/>All the bulk commands are in this exact form: instead of the last argument
+the number of bytes that will follow is specified, followed by the bytes,
+and CRLF. In order to be more clear for the programmer this is the string
+sent by the client in the above sample:<br/><br/><blockquote>&quot;SET mykey 6\r\nfoobar\r\n&quot;</blockquote>
+<h2><a name="Bulk replies">Bulk replies</a></h2>The server may reply to an inline or bulk command with a bulk reply. See
+the following example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: GET mykey
 S: 6
-S: foobar</pre><p>A bulk reply is very similar to the last argument of a bulk command. The server sends as the first line the number of bytes of the actual reply followed by CRLF, then the bytes are sent followed by additional two bytes for the final CRLF. The exact sequence sent by the server is:</p><p>    &quot;6\r\nfoobar\r\n&quot;</p><p>If the requested value does not exist the bulk reply will use the special value 'nil' instead to send the line containing the number of bytes to read. This is an example:</p><pre>C: GET nonexistingkey
-S: nil</pre><p>The client library API should not return an empty string, but a nil object. For example a Ruby library should return 'nil' while a C library should return NULL.</p><h2>Bulk reply error reporting</h2><p>Bulk replies can signal errors, for example trying to use GET against a list value is not permitted. Bulk replies use a negative bytes count in order to signal an error. An error string of ABS(bytes_count) bytes will follow. See the following example:</p><pre>S: GET alistkey
+S: foobar
+</pre>A bulk reply is very similar to the last argument of a bulk command. The
+server sends as the first line the number of bytes of the actual reply
+followed by CRLF, then the bytes are sent followed by additional two bytes
+for the final CRLF. The exact sequence sent by the server is:<br/><br/><blockquote>&quot;6\r\nfoobar\r\n&quot;</blockquote>
+If the requested value does not exist the bulk reply will use the special
+value 'nil' instead to send the line containing the number of bytes to read.
+This is an example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: GET nonexistingkey
+S: nil
+</pre>The client library API should not return an empty string, but a nil object.
+For example a Ruby library should return 'nil' while a C library should return
+NULL.<h2><a name="Bulk reply error reporting">Bulk reply error reporting</a></h2>Bulk replies can signal errors, for example trying to use GET against a list
+value is not permitted. Bulk replies use a negative bytes count in order to
+signal an error. An error string of ABS(bytes_count) bytes will follow. See
+the following example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+S: GET alistkey
 S: -38
-S: -ERR Requested element is not a string</pre><p>-38 means: sorry your operation resulted in an error, but a 38 bytes string that explains this error will follow. Client APIs should abort on this kind of errors, for example a PHP client should call the die() function.</p><p>The following commands reply with a bulk reply: GET, KEYS, LINDEX, LPOP, RPOP</p><h2>Multi-Bulk replies</h2><p>In the specific case of the LRANGE command the server needs to return multiple values (every element of the list is a value, and LRANGE needs to return more than a single element). This is accomplished using multiple bulk writes, prefixed by an initial line indicating how many bulk writes will follow. Example:</p><pre>C: LRANGE mylist 0 3
+S: -ERR Requested element is not a string
+</pre>-38 means: sorry your operation resulted in an error, but a 38 bytes string
+that explains this error will follow. Client APIs should abort on this kind
+of errors, for example a PHP client should call the die() function.<br/><br/>The following commands reply with a bulk reply: GET, KEYS, LINDEX, LPOP, RPOP<h2><a name="Multi-Bulk replies">Multi-Bulk replies</a></h2>In the specific case of the LRANGE command the server needs to return multiple
+values (every element of the list is a value, and LRANGE needs to return
+more than a single element). This is accomplished using multiple bulk writes,
+prefixed by an initial line indicating how many bulk writes will follow.
+Example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: LRANGE mylist 0 3
 S: 4
 S: 3
 S: foo
@@ -104,9 +352,44 @@ S: bar
 S: 5
 S: Hello
 S: 5
-S: World</pre><p>The first line the server sent is &quot;4\r\n&quot; in order to specify that four bulk write will follow. Then every bulk write is transmitted.</p><p>If the specified key does not exist instead of the number of elements in the list, the special value 'nil' is sent. Example:</p><pre>C: LRANGE nokey 0 1
-S: nil</pre><p>A client library API SHOULD return a nil object and not an empty list when this happens. This makes possible to distinguish between empty list and non existing ones.</p><h2>Multi-Bulk replies errors</h2><p>Like bulk reply errors Multi-bulk reply errors are reported using a negative count. Example:</p><pre>C: LRANGE stringkey 0 1
+S: World
+</pre>The first line the server sent is &quot;4\r\n&quot; in order to specify that four bulk
+write will follow. Then every bulk write is transmitted.<br/><br/>If the specified key does not exist instead of the number of elements in the
+list, the special value 'nil' is sent. Example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: LRANGE nokey 0 1
+S: nil
+</pre>A client library API SHOULD return a nil object and not an empty list when this
+happens. This makes possible to distinguish between empty list and non existing ones.<h2><a name="Multi-Bulk replies errors">Multi-Bulk replies errors</a></h2>Like bulk reply errors Multi-bulk reply errors are reported using a negative
+count. Example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+C: LRANGE stringkey 0 1
 S: -38
-S: -ERR Requested element is not a string</pre><p>The following commands reply with a multi-bulk reply: LRANGE, LINTER</p><p>Check the Bulk replies errors section for more information.</p><h2>Status code reply</h2><p>As already seen a status code reply is in the form of a single line string terminated by &quot;\r\n&quot;. For example:</p><pre>+OK</pre><p>and</p><pre>-ERR no suck key</pre><p>are two examples of status code replies. The first character of a status code reply is always &quot;+&quot; or &quot;-&quot;.</p><p>The following commands reply with a status code reply: PING, SET, SELECT, SAVE, BGSAVE, SHUTDOWN, RENAME, LPUSH, RPUSH, LSET, LTRIM</p><h2>Integer reply</h2><p>This type of reply is just a CRLF terminated string representing an integer. For example &quot;0\r\n&quot;, or &quot;1000\r\n&quot; are integer replies.</p><p>With commands like INCR or LASTSAVE using the integer reply to actually return a value there is no special meaning for the returned integer. It is just an incremental number for INCR, a UNIX time for LASTSAVE and so on.</p><p>Some commands like EXISTS will return 1 for true and 0 for false.</p><p>Other commands like SADD, SREM and SETNX will return 1 if the operation was actually done, 0 otherwise, and <strong>a negative value</strong> if the operation is invalid (for example SADD against a non-set value), accordingly to this table: <pre>-1 no such key -2 operation against the a key holding a value of the wrong type -3 source and destiantion objects/dbs are the same -4 argument out of range</pre> In all this cases it is mandatory that the client raises an error instead to pass the negative value to the caller. Please check the commands documentation for the exact behaviour.</p><p>The following commands will reply with an integer reply: SETNX, DEL, EXISTS, INCR, INCRBY, DECR, DECRBY, DBSIZE, LASTSAVE, RENAMENX, MOVE, LLEN, SADD, SREM, SISMEMBER, SCARD</p><p>The commands that will never return a negative integer (commands that can't fail) are: INCR, DECR, INCRBY, DECRBY, LASTSAVE, EXISTS, SETNX, DEL, DBSIZE.</p><h2>Single line reply</h2><p>This replies are just single line strings terminated by CRLF. Only two commands reply in this way currently, RANDOMKEY and TYPE.</p><h2>Multiple commands and pipelining</h2><p>A client can use the same connection in order to issue multiple commands. Pipelining is supported so multiple commands can be sent with a single write operation by the client, it is not needed to read the server reply in order to issue the next command. All the replies can be read at the end.</p><p>Usually Redis server and client will have a very fast link so this is not very important to support this feature in a client implementation, still if an application needs to issue a very large number of commands in short time to use pipelining can be much faster.</p><h1>License</h1><p>Redis is released under the BSD license. See the COPYING file for more information.</p><h1>Credits</h1><p>Redis is written and maintained by Salvatore Sanfilippo, Aka 'antirez'.</p><p>Enjoy, antirez</p>
-  </body>
+S: -ERR Requested element is not a string
+</pre>The following commands reply with a multi-bulk reply: LRANGE, LINTER<br/><br/>Check the Bulk replies errors section for more information.<h2><a name="Status code reply">Status code reply</a></h2>As already seen a status code reply is in the form of a single line string
+terminated by &quot;\r\n&quot;. For example:<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
++OK
+</pre>and<br/><br/><pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+-ERR no suck key
+</pre>are two examples of status code replies. The first character of a status code reply is always &quot;+&quot; or &quot;-&quot;.<br/><br/>The following commands reply with a status code reply:
+PING, SET, SELECT, SAVE, BGSAVE, SHUTDOWN, RENAME, LPUSH, RPUSH, LSET, LTRIM<h2><a name="Integer reply">Integer reply</a></h2>This type of reply is just a CRLF terminated string representing an integer. For example &quot;0\r\n&quot;, or &quot;1000\r\n&quot; are integer replies.<br/><br/>With commands like INCR or LASTSAVE using the integer reply to actually return a value there is no special meaning for the returned integer. It is just an incremental number for INCR, a UNIX time for LASTSAVE and so on.<br/><br/>Some commands like EXISTS will return 1 for true and 0 for false.<br/><br/>Other commands like SADD, SREM and SETNX will return 1 if the operation was actually done, 0 otherwise, and <b>a negative value</b> if the operation is invalid (for example SADD against a non-set value), accordingly to this table:
+<pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python python" name="code">
+-1 no such key
+-2 operation against the a key holding a value of the wrong type
+-3 source and destiantion objects/dbs are the same
+-4 argument out of range
+</pre>
+In all this cases it is mandatory that the client raises an error instead to pass the negative value to the caller. Please check the commands documentation for the exact behaviour.<br/><br/>The following commands will reply with an integer reply: SETNX, DEL, EXISTS, INCR, INCRBY, DECR, DECRBY, DBSIZE, LASTSAVE, RENAMENX, MOVE, LLEN, SADD, SREM, SISMEMBER, SCARD<br/><br/>The commands that will never return a negative integer (commands that can't fail) are: INCR, DECR, INCRBY, DECRBY, LASTSAVE, EXISTS, SETNX, DEL, DBSIZE.<h2><a name="Single line reply">Single line reply</a></h2>This replies are just single line strings terminated by CRLF. Only two commands reply in this way currently, RANDOMKEY and TYPE.<h2><a name="Multiple commands and pipelining">Multiple commands and pipelining</a></h2>A client can use the same connection in order to issue multiple commands.
+Pipelining is supported so multiple commands can be sent with a single
+write operation by the client, it is not needed to read the server reply
+in order to issue the next command. All the replies can be read at the end.<br/><br/>Usually Redis server and client will have a very fast link so this is not
+very important to support this feature in a client implementation, still
+if an application needs to issue a very large number of commands in short
+time to use pipelining can be much faster.<h1><a name="License">License</a></h1>Redis is released under the BSD license. See the COPYING file for more information.<h1><a name="Credits">Credits</a></h1>Redis is written and maintained by Salvatore Sanfilippo, Aka 'antirez'.<br/><br/>Enjoy,
+antirez
+
+                </div>
+        
+            </div>
+        </div>
+    </body>
 </html>
+
