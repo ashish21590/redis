@@ -457,8 +457,16 @@ proc main {server port} {
     } {}
 
     test {SORT with BY against the newly created list} {
-        set sorted [redis_sort $fd tosort {BY weight_*}]
+        redis_sort $fd tosort {BY weight_*}
     } $res
+
+    test {SORT direct, numeric, against the newly created list} {
+        redis_sort $fd tosort
+    } [lsort -integer $res]
+
+    test {SORT decreasing sort} {
+        redis_sort $fd tosort {DESC}
+    } [lsort -decreasing -integer $res]
 
     test {SORT speed, sorting 10000 elements list using BY, 100 times} {
         set start [clock clicks -milliseconds]

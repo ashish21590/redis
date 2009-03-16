@@ -2467,7 +2467,10 @@ static int sortCompare(const void *s1, const void *s2) {
     const redisSortObject *so1 = s1, *so2 = s2;
     int cmp;
 
-    if (server.sort_alpha) {
+    if (!server.sort_alpha) {
+        /* Numeric sorting. Here it's trivial as we precomputed scores */
+        cmp = so1->u.score - so2->u.score;
+    } else {
         /* Alphanumeric sorting */
         if (server.sort_bypattern) {
             if (!so1->u.cmpobj || !so2->u.cmpobj) {
@@ -2486,9 +2489,6 @@ static int sortCompare(const void *s1, const void *s2) {
             /* Compare elements directly */
             cmp = strcoll(so1->obj->ptr,so2->obj->ptr);
         }
-    } else {
-        /* Numeric sorting. Here it's trivial as we precomputed scores */
-        cmp = so1->u.score - so2->u.score;
     }
     return server.sort_desc ? -cmp : cmp;
 }
