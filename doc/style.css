@@ -19,3 +19,7 @@ h1 {
     color: darkgreen;
     padding:5px;
 }
+
+h1.wikiname {
+    color: #f55000;
+}

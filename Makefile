@@ -6,7 +6,7 @@ DEBUG?= -g
 CFLAGS?= -Wall -W -DSDS_ABORT_ON_OOM
 CCOPT= $(CFLAGS)
 
-OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o picol.o
+OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o
 BENCHOBJ = ae.o anet.o benchmark.o sds.o adlist.o
 PRGNAME = redis-server
 BENCHPRGNAME = redis-benchmark
@@ -14,7 +14,6 @@ BENCHPRGNAME = redis-benchmark
 all: redis-server redis-benchmark
 
 # Deps (use make dep to generate this)
-picol.o: picol.c picol.h
 adlist.o: adlist.c adlist.h
 ae.o: ae.c ae.h
 anet.o: anet.c anet.h
