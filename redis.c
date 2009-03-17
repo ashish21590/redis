@@ -2664,11 +2664,10 @@ static void sortCommand(redisClient *c) {
                     vector[j].u.cmpobj = byval;
                     incrRefCount(byval);
                 } else {
-                    vector[j].u.score = atof(byval->ptr);
-                    // printf("(%s) %f\n", byval->ptr, vector[j].u.score);
+                    vector[j].u.score = strtod(byval->ptr,NULL);
                 }
             } else {
-                if (!alpha) vector[j].u.score = atof(vector[j].obj->ptr);
+                if (!alpha) vector[j].u.score = strtod(vector[j].obj->ptr,NULL);
             }
         }
     }
