@@ -3,7 +3,7 @@
 # This file is released under the BSD license, see the COPYING file
 
 DEBUG?= -g
-CFLAGS?= -Wall -W -DSDS_ABORT_ON_OOM
+CFLAGS?= -O2 -Wall -W -DSDS_ABORT_ON_OOM
 CCOPT= $(CFLAGS)
 
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o
