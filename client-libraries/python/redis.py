@@ -553,6 +553,8 @@ class Redis(object):
         ['99.0', '99.5', '99.6666666667', '99.75']
         >>> r.sort('l', desc=True, by='weight_*', get='test_*')
         ['99.5', '99.0', '99.6666666667', '99.75']
+        >>> r.sort('l', desc=True, by='weight_*', get='missing_*')
+        [None, None, None, None]
         >>> 
         """
         stmt = ['SORT', name]
@@ -825,9 +827,9 @@ class Redis(object):
         self._write('%s\r\n' % ('FLUSHALL' if all_dbs else 'FLUSHDB'))
         return self._get_simple_response()
     
-    def _get_value(self):
+    def _get_value(self, negative_as_nil=False):
         data = self._read().strip()
-        if data == 'nil':
+        if data == 'nil' or (negative_as_nil and data == '-1'):
             return
         elif data[0] == '-':
             self._check_for_error(data)
@@ -877,7 +879,7 @@ class Redis(object):
                 return results
             raise
         while num:
-            results.append(self._get_value())
+            results.append(self._get_value(negative_as_nil=True))
             num -= 1
         return results
         
