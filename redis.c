@@ -2510,7 +2510,13 @@ static int sortCompare(const void *s1, const void *s2) {
 
     if (!server.sort_alpha) {
         /* Numeric sorting. Here it's trivial as we precomputed scores */
-        cmp = so1->u.score - so2->u.score;
+        if (so1->u.score > so2->u.score) {
+            cmp = 1;
+        } else if (so1->u.score < so2->u.score) {
+            cmp = -1;
+        } else {
+            cmp = 0;
+        }
     } else {
         /* Alphanumeric sorting */
         if (server.sort_bypattern) {

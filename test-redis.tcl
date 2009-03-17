@@ -501,6 +501,14 @@ proc main {server port} {
         format {}
     } {}
 
+    test {SORT regression test #1, sorting floats} {
+        redis_flushdb $fd
+        foreach x {1.1 5.10 3.10 7.44 2.1 5.75 6.12 0.25 1.15} {
+            redis_lpush $fd mylist $x
+        }
+        redis_sort $fd mylist
+    } [lsort -real {1.1 5.10 3.10 7.44 2.1 5.75 6.12 0.25 1.15}]
+
     test {LREM, remove all the occurrences} {
         redis_flushall $fd
         redis_rpush $fd mylist foo

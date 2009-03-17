@@ -16,7 +16,7 @@
             <div id="pagecontent">
                 <div class="index">
 <!-- This is a (PRE) block.  Make sure it's left aligned or your toc title will be off. -->
-<b>README: Contents</b><br>&nbsp;&nbsp;<a href="#Introduction">Introduction</a><br>&nbsp;&nbsp;<a href="#How Redis differs from Memcached?">How Redis differs from Memcached?</a><br>&nbsp;&nbsp;<a href="#Does Redis support locking?">Does Redis support locking?</a><br>&nbsp;&nbsp;<a href="#Multiple databases support">Multiple databases support</a><br>&nbsp;&nbsp;<a href="#Redis Data Types">Redis Data Types</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Implementation Details">Implementation Details</a><br>&nbsp;&nbsp;<a href="#Redis Tutorial">Redis Tutorial</a><br>&nbsp;&nbsp;<a href="#Redis Commands Reference">Redis Commands Reference</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Connection handling">Connection handling</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#QUIT">QUIT</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on string values">Commands operating on string values</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SET _key_ _value_">SET _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#GET _key_">GET _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SETNX _key_ _value_">SETNX _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#INCR _key_">INCR _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#INCRBY _key_ _value_">INCRBY _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DECR _key_">DECR _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DECRBY _key_ _value_">DECRBY _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on every value">Commands operating on every value</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#EXISTS _key_">EXISTS _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DEL _key_">DEL _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#TYPE _key_">TYPE _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#KEYS _pattern_">KEYS _pattern_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RANDOMKEY">RANDOMKEY</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RENAME _oldkey_ _newkey_">RENAME _oldkey_ _newkey_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RENAMENX _oldkey_ _newkey_">RENAMENX _oldkey_ _newkey_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on lists">Commands operating on lists</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RPUSH _key_ _string_">RPUSH _key_ _string_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LPUSH _key_ _string_">LPUSH _key_ _string_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LLEN _key_">LLEN _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LRANGE _key_ _start_ _end_">LRANGE _key_ _start_ _end_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LTRIM _key_ _start_ _end_">LTRIM _key_ _start_ _end_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LINDEX _key_ _index_">LINDEX _key_ _index_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LSET _key_ _index_ _value_">LSET _key_ _index_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LREM _key_ _count_ _value_">LREM _key_ _count_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LPOP _key_">LPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RPOP _key_">RPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on sets">Commands operating on sets</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SADD _key_ _member_">SADD _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SREM _key_ _member_">SREM _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SCARD _key_">SCARD _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SISMEMBER _key_ _member_">SISMEMBER _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SINTER _key1_ _key2_ ... _keyN_">SINTER _key1_ _key2_ ... _keyN_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_">SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SMEMBERS _key_">SMEMBERS _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Multiple DB commands">Multiple DB commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SELECT _index_">SELECT _index_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#MOVE _key_ _dbindex_">MOVE _key_ _dbindex_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#FLUSHDB">FLUSHDB</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#FLUSHALL">FLUSHALL</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Sorting">Sorting</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA">SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Persistence control commands">Persistence control commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SAVE">SAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#BGSAVE">BGSAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LASTSAVE">LASTSAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SHUTDOWN">SHUTDOWN</a><br>&nbsp;&nbsp;<a href="#License">License</a><br>&nbsp;&nbsp;<a href="#Credits">Credits</a>
+<b>README: Contents</b><br>&nbsp;&nbsp;<a href="#Introduction">Introduction</a><br>&nbsp;&nbsp;<a href="#How Redis differs from Memcached?">How Redis differs from Memcached?</a><br>&nbsp;&nbsp;<a href="#Does Redis support locking?">Does Redis support locking?</a><br>&nbsp;&nbsp;<a href="#Multiple databases support">Multiple databases support</a><br>&nbsp;&nbsp;<a href="#Redis Data Types">Redis Data Types</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Implementation Details">Implementation Details</a><br>&nbsp;&nbsp;<a href="#Redis Tutorial">Redis Tutorial</a><br>&nbsp;&nbsp;<a href="#Redis Commands Reference">Redis Commands Reference</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Connection handling">Connection handling</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LTRIM _key_ _start_ _end_">LTRIM _key_ _start_ _end_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LINDEX _key_ _index_">LINDEX _key_ _index_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LSET _key_ _index_ _value_">LSET _key_ _index_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LREM _key_ _count_ _value_">LREM _key_ _count_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LPOP _key_">LPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#RPOP _key_">RPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Commands operating on sets">Commands operating on sets</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SADD _key_ _member_">SADD _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SREM _key_ _member_">SREM _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SCARD _key_">SCARD _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SISMEMBER _key_ _member_">SISMEMBER _key_ _member_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SINTER _key1_ _key2_ ... _keyN_">SINTER _key1_ _key2_ ... _keyN_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_">SINTERSTORE _dstkey_ _key1_ _key2_ ... _keyN_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SMEMBERS _key_">SMEMBERS _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Multiple DB commands">Multiple DB commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SELECT _index_">SELECT _index_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#MOVE _key_ _dbindex_">MOVE _key_ _dbindex_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#FLUSHDB">FLUSHDB</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#FLUSHALL">FLUSHALL</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Sorting">Sorting</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA">SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Persistence control commands">Persistence control commands</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SAVE">SAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#BGSAVE">BGSAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#LASTSAVE">LASTSAVE</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#SHUTDOWN">SHUTDOWN</a><br>&nbsp;&nbsp;<a href="#License">License</a><br>&nbsp;&nbsp;<a href="#Credits">Credits</a>
                 </div>
                 
                 <h1 class="wikiname">README</h1>
@@ -102,81 +102,12 @@ EXISTS foo
 exist, and '1' for 'foo', a key that actually exists.<br/><br/>Ok... now you know the basics, read the &quot;REDIS COMMANDS REFERENCE&quot; section to
 learn all the commands supported by Redis and the &quot;PROTOCOL SPECIFICATION&quot;
 section for more details about the protocol used if you plan to implement one
-for a language missing a decent client implementation.<h1><a name="Redis Commands Reference">Redis Commands Reference</a></h1><h2><a name="Connection handling">Connection handling</a></h2><h3><a name="QUIT">QUIT</a></h3>
-Ask the server to silently close the connection.<br/><br/><b>Return value: none</b><h2><a name="Commands operating on string values">Commands operating on string values</a></h2><h3><a name="SET _key_ _value_">SET _key_ _value_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Set the string <i>value</i> as value of the <i>key</i>.The string can't be longer than 1073741824 bytes (1 GB).</blockquote>
-<b>Return value: status code reply</b><h3><a name="GET _key_">GET _key_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Get the value of the specified key. If the keydoes not exist the special value 'nil' is returned.If the value stored at <i>key</i> is not a string an erroris returned because GET can only handle string values.</blockquote>
-<b>Return value: bluk reply</b><h3><a name="SETNX _key_ _value_">SETNX _key_ _value_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>SETNX works exactly like SET with the only difference thatif the key already exists no operation is performed.SETNX actually means &quot;SET if Not eXists&quot;.</blockquote>
-<b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python" name="code">
-1 if the key was set
-0 if the key was not set
-</pre>
-</b><h3><a name="INCR _key_">INCR _key_</a></h3>
-<h3><a name="INCRBY _key_ _value_">INCRBY _key_ _value_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Increment the number stored at <i>key</i> by one. If the key doesnot exist or contains a value of a wrong type, set the key to thevalue of &quot;1&quot; (like if the previous value was zero).</blockquote>
-<blockquote>INCRBY works just like INCR but instead to increment by 1 theincrement is <i>value</i>.</blockquote>
-<b>Return value: integer reply</b><h3><a name="DECR _key_">DECR _key_</a></h3>
-<h3><a name="DECRBY _key_ _value_">DECRBY _key_ _value_</a></h3>
-<i>Time complexity: O(1)</i>
-<blockquote>Like INCR/INCRBY but decrementing instead of incrementing.</blockquote>
-<h2><a name="Commands operating on every value">Commands operating on every value</a></h2><h3><a name="EXISTS _key_">EXISTS _key_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Test if the specified key exists. The command returns&quot;0&quot; if the key exists, otherwise &quot;1&quot; is returned.Note that even keys set with an empty string as value willreturn &quot;1&quot;.</blockquote>
-<b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python" name="code">
-1 if the key exists
-0 if the key does not exist
-</pre>
-</b><h3><a name="DEL _key_">DEL _key_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Remove the specified key. If the key does not existno operation is performed. The command always returns success.</blockquote>
-<b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python" name="code">
-1 if the key was removed
-0 if the key does not exist
-</pre>
-</b><h3><a name="TYPE _key_">TYPE _key_</a></h3>
-<i>Time complexity: O(1)</i>
-<blockquote>Return the type of the value stored at <i>key</i> in form of astring. The type can be one of &quot;none&quot;, &quot;string&quot;, &quot;list&quot;, &quot;set&quot;.&quot;none&quot; is returned if the key does not exist.</blockquote>
-<b>Return value: single line reply</b><h3><a name="KEYS _pattern_">KEYS _pattern_</a></h3>
-<i>Time complexity: O(n) (with n being the number of keys in the DB)</i><blockquote>Returns all the keys matching the glob-style <i>pattern</i> asspace separated strings. For example if you have in thedatabase the keys &quot;foo&quot; and &quot;foobar&quot; the command &quot;KEYS foo<code name="code" class="python">*</code>&quot;will return &quot;foo foobar&quot;.</blockquote>
-<blockquote>Note that while the time complexity for this operation is O(n)the constant times are pretty low. For example Redis runningon an entry level laptop can scan a 1 million keys databasein 40 milliseconds. Still it's better to consider this one ofthe slow commands that may ruin the DB performance if not usedwith care.</blockquote>
-<b>Return value: bulk reply</b><h3><a name="RANDOMKEY">RANDOMKEY</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Returns a random key from the currently seleted DB.</blockquote>
-<b>Return value: single line reply</b><h3><a name="RENAME _oldkey_ _newkey_">RENAME _oldkey_ _newkey_</a></h3>
-<blockquote>Atomically renames the key <i>oldkey</i> to <i>newkey</i>. If the source anddestination name are the same an error is returned. If <i>newkey</i>already exists it is overwritten.</blockquote>
-<b>Return value: status code reply</b><h3><a name="RENAMENX _oldkey_ _newkey_">RENAMENX _oldkey_ _newkey_</a></h3>
-<blockquote>Just like RENAME but fails if the destination key <i>newkey</i>already exists.</blockquote>
-<b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python" name="code">
-1 if the key was renamed
-0 if the target key already exist
--1 if the source key does not exist
--3 if source and destination keys are the same
-</pre>
-</b><h2><a name="Commands operating on lists">Commands operating on lists</a></h2><h3><a name="RPUSH _key_ _string_">RPUSH _key_ _string_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Add the given string to the head of the list contained at key.If the key does not exist an empty list is created just beforethe append operation. If the key exists but is not a List an erroris returned.</blockquote>
-<b>Return value: status code reply</b><h3><a name="LPUSH _key_ _string_">LPUSH _key_ _string_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Add the given string to the tail of the list contained at key.If the key does not exist an empty list is created just beforethe append operation. If the key exists but is not a List an erroris returned.</blockquote>
-<b>Return value: status code reply</b><h3><a name="LLEN _key_">LLEN _key_</a></h3>
-<i>Time complexity: O(1)</i><blockquote>Return the length of the list stored at the specified key. If thekey does not exist zero is returned (the same behaviour as forempty lists). If the value stored at key is not a list the specialvalue -2 is returned. Note: client library should raise an exceptionwhen -2 is returned instead to pass the value back to the callerlike a normal list length value.</blockquote>
-<b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python" name="code">
-the length of the list as an integer `&gt;=` 0 if the operation succeeded
--2 if the specified key does not hold a list value
-</pre>
-</b><h3><a name="LRANGE _key_ _start_ _end_">LRANGE _key_ _start_ _end_</a></h3>
-<i>Time complexity: O(n) (with n being the length of the range)</i><blockquote>Return the specified elements of the list stored at the specifiedkey. Start and end are zero-based indexes. 0 is the first elementof the list (the list head), 1 the next element and so on.</blockquote>
-<blockquote>For example LRANGE foobar 0 2 will return the first three elementsof the list.</blockquote>
-<blockquote>_start_ and <i>end</i> can also be negative numbers indicating offsetsfrom the end of the list. For example -1 is the last element ofthe list, -2 the penultimate element and so on.</blockquote>
-<blockquote>Indexes out of range will not produce an error: if start is overthe end of the list, or start <code name="code" class="python">&gt;</code> end, an empty list is returned.If end is over the end of the list Redis will threat it just likethe last element of the list.</blockquote>
-<b>Return value: multi bulk reply</b><h3><a name="LTRIM _key_ _start_ _end_">LTRIM _key_ _start_ _end_</a></h3>
+for a language missing a decent client implementation.<h1><a name="Redis Commands Reference">Redis Commands Reference</a></h1><h2><a name="Connection handling">Connection handling</a></h2><h3><a name="LTRIM _key_ _start_ _end_">LTRIM _key_ _start_ _end_</a></h3>
 <i>Time complexity: O(n) (with n being len of list - len of range)</i><blockquote>Trim an existing list so that it will contain only the specifiedrange of elements specified. Start and end are zero-based indexes.0 is the first element of the list (the list head), 1 the next elementand so on.</blockquote>
 <blockquote>For example LTRIM foobar 0 2 will modify the list stored at foobarkey so that only the first three elements of the list will remain.</blockquote>
 <blockquote>_start_ and <i>end</i> can also be negative numbers indicating offsetsfrom the end of the list. For example -1 is the last element ofthe list, -2 the penultimate element and so on.</blockquote>
 <blockquote>Indexes out of range will not produce an error: if start is overthe end of the list, or start &gt; end, an empty list is left as value.If end over the end of the list Redis will threat it just likethe last element of the list.</blockquote>
-<blockquote>Hint: the obvious use of LTRIM is together with LPUSH/RPUSH. For example:</blockquote><pre class="codeblock python python python python python python python python python python" name="code">
+<blockquote>Hint: the obvious use of LTRIM is together with LPUSH/RPUSH. For example:</blockquote><pre class="codeblock python python python python python" name="code">
         LPUSH mylist &lt;someelement&gt;
         LTRIM mylist 0 99
 </pre>
@@ -190,7 +121,7 @@ the length of the list as an integer `&gt;=` 0 if the operation succeeded
 <b>Return value: status code reply</b><h3><a name="LREM _key_ _count_ _value_">LREM _key_ _count_ _value_</a></h3>
 <i>Time complexity: O(N) (with N being the length of the list)</i><blockquote>Remove the first <i>count</i> occurrences of the <i>value</i> element from the list.If <i>count</i> is zero all the elements are removed. If <i>count</i> is negativeelements are removed from tail to head, instead to go from head to tailthat is the normal behaviour. So for example LREM with count -2 and_hello_ as value to remove against the list (a,b,c,hello,x,hello,hello) willlave the list (a,b,c,hello,x). The number of removed elements is returnedas an integer, see below for more information aboht the returned value.</blockquote>
 <b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python" name="code">
 The number of removed elements if the operation succeeded
 -1 if the specified key does not exist
 -2 if the specified key does not hold a list value
@@ -203,7 +134,7 @@ The number of removed elements if the operation succeeded
 <h2><a name="Commands operating on sets">Commands operating on sets</a></h2><h3><a name="SADD _key_ _member_">SADD _key_ _member_</a></h3>
 <i>Time complexity O(1)</i><blockquote>Add the specified <i>member</i> to the set value stored at <i>key</i>. If <i>member</i>is already a member of the set no operation is performed. If <i>key</i>does not exist a new set with the specified <i>member</i> as sole member iscrated. If the key exists but does not hold a set value an error isreturned.</blockquote>
 <b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python" name="code">
 1 if the new element was added
 0 if the new element was already a member of the set
 -2 if the key contains a non set value
@@ -211,7 +142,7 @@ The number of removed elements if the operation succeeded
 </b><h3><a name="SREM _key_ _member_">SREM _key_ _member_</a></h3>
 <i>Time complexity O(1)</i><blockquote>Remove the specified <i>member</i> from the set value stored at <i>key</i>. If_member_ was not a member of the set no operation is performed. If <i>key</i>does not exist or does not hold a set value an error is returned.</blockquote>
 <b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python" name="code">
 1 if the new element was removed
 0 if the new element was not a member of the set
 -2 if the key does not hold a set value
@@ -219,14 +150,14 @@ The number of removed elements if the operation succeeded
 </b><h3><a name="SCARD _key_">SCARD _key_</a></h3>
 <i>Time complexity O(1)</i><blockquote>Return the set cardinality (number of elements). If the <i>key</i> does notexist 0 is returned, like for empty sets. If the <i>key</i> does not holda set value -1 is returned. Client libraries should raise an errorwhen -1 is returned instead to pass the value to the caller.</blockquote>
 <b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python" name="code">
 the cardinality (number of elements) of the set as an integer `&gt;=` 0 if the operation succeeded
 -2 if the specified key does not hold a set value
 </pre>
 </b><h3><a name="SISMEMBER _key_ _member_">SISMEMBER _key_ _member_</a></h3>
 <i>Time complexity O(1)</i><blockquote>Return 1 if <i>member</i> is a member of the set stored at <i>key</i>, otherwise0 is returned. On error a negative value is returned. Client librariesshould raise an error when a negative value is returned instead to passthe value to the caller.</blockquote>
 <b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python" name="code">
 1 if the element is a member of the set
 0 if the element is not a member of the set OR if the key does not exist
 -2 if the key does not hold a set value
@@ -243,7 +174,7 @@ _Time complexity O(N</b>M) worst case where N is the cardinality of the smallest
 <b>Return value: status code reply</b><h3><a name="MOVE _key_ _dbindex_">MOVE _key_ _dbindex_</a></h3>
 <blockquote>Move the specified key from the currently selected DB to the specifieddestination DB. Note that this command returns 1 only if the key wassuccessfully moved, and 0 if the target key was already there or if thesource key was not found at all, so it is possible to use MOVE as a lockingprimitive.</blockquote>
 <b>Return value: integer reply, specifically:
-<pre class="codeblock python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python" name="code">
 1 if the key was moved
 0 if the key was not moved because already present on the target DB or was not found in the current DB.
 -3 if the destination DB is the same as the source DB
@@ -255,25 +186,25 @@ _Time complexity O(N</b>M) worst case where N is the cardinality of the smallest
 <blockquote>Delete all the keys of all the existing databases, not just the currently selected one. This command never fails.</blockquote>
 <b>Return value: status code reply</b><h2><a name="Sorting">Sorting</a></h2><h3><a name="SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA">SORT _key_ BY _pattern_ LIMIT _start_ _end_ GET _pattern_ ASC|DESC ALPHA</a></h3>
 <blockquote>Sort the elements contained in the List or Set value at <i>key</i>. By defaultsorting is numeric with elements being compared as double precisionfloating point numbers. This is the simplest form of SORT.</blockquote>
-<pre class="codeblock python python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python python" name="code">
 SORT mylist
 </pre><blockquote>Assuming mylist contains a list of numbers, the return value will bethe list of numbers ordered from the smallest to the bigger number.In order to get the sorting in reverse order use DESC:</blockquote>
-<pre class="codeblock python python python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python python python" name="code">
 SORT mylist DESC
 </pre><blockquote>ASC is also supported but it's the default so you don't really need it.If you want to sort lexicographically use ALPHA. Note that Redis isutf-8 aware assuming you set the right value for the LC_COLLATEenvironment variable.</blockquote>
 <blockquote>Sort is able to limit the number of results using the LIMIT option:</blockquote>
-<pre class="codeblock python python python python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python python python python" name="code">
 SORT mylist LIMIT 0 10
 </pre><blockquote>In the above example SORT will return only 10 elements, starting fromthe first one (star is zero-based). Almost all the sort options canbe mixed together. For example:</blockquote>
-<pre class="codeblock python python python python python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python python python python python" name="code">
 SORT mylist LIMIT 0 10 ALPHA DESC
 </pre><blockquote>Will sort <i>mylist</i> lexicographically, in descending order, returning onlythe first 10 elements.</blockquote>
 <blockquote>Sometimes you want to sort elements using external keys as weights tocompare instead to compare the actual List or Set elements. For examplethe list <i>mylist</i> may contain the elements 1, 2, 3, 4, that are justthe unique IDs of objects stored at object_1, object_2, object_3and object_4, while the keys weight_1, weight_2, weight_3 and weight_4can contain weights we want to use to sort the list of objectsidentifiers. We can use the following command:</blockquote>
-<pre class="codeblock python python python python python python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python python python python python python" name="code">
 SORT mylist BY weight_*
 </pre><blockquote>the BY option takes a pattern (<code name="code" class="python">weight_*</code> in our example) that is usedin order to generate the key names of the weights used for sorting.Weight key names are obtained substituting the first occurrence of <code name="code" class="python">*</code>with the actual value of the elements on the list (1,2,3,4 in our example).</blockquote>
 <blockquote>Still our previous example will return just the sorted IDs. Often it isneeded to get the actual objects sorted (object_1, ..., object_4 in theexample). We can do it with the following command:</blockquote>
-<pre class="codeblock python python python python python python python python python python python python python python python python python python python python python python" name="code">
+<pre class="codeblock python python python python python python python python python python python python python python python python python" name="code">
 SORT mylist BY weight_* GET object_*
 </pre><blockquote>Note that GET can be used multiple times in order to get more keys forevery element of the original List or Set sorted.</blockquote>
 <b>Return value: multi bulk reply</b><h2><a name="Persistence control commands">Persistence control commands</a></h2><h3><a name="SAVE">SAVE</a></h3>
