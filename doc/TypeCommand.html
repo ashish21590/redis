@@ -16,7 +16,7 @@
             <div id="pagecontent">
                 <div class="index">
 <!-- This is a (PRE) block.  Make sure it's left aligned or your toc title will be off. -->
-<b>TypeCommand: Contents</b><br>&nbsp;&nbsp;<a href="#TYPE _key_">TYPE _key_</a><br>&nbsp;&nbsp;<a href="#SET _key_ _value_">SET _key_ _value_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Return value">Return value</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#See also">See also</a>
+<b>TypeCommand: Contents</b><br>&nbsp;&nbsp;<a href="#TYPE _key_">TYPE _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Return value">Return value</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#See also">See also</a>
                 </div>
                 
                 <h1 class="wikiname">TypeCommand</h1>
@@ -27,10 +27,8 @@
 
                 <div class="narrow">
                     <h1><a name="TYPE _key_">TYPE _key_</a></h1>
-<i>Time complexity: O(1)</i>Return the type of the value stored at <i>key</i> in form of a
-string. The type can be one of &quot;none&quot;, &quot;string&quot;, &quot;list&quot;, &quot;set&quot;.
-&quot;none&quot; is returned if the key does not exist.<h1><a name="SET _key_ _value_">SET _key_ _value_</a></h1>
-<i>Time complexity: O(1)</i><h2><a name="Return value">Return value</a></h2><a href="ReplyTypes.html">Single line reply</a>, specifically:<br/><br/><pre class="codeblock python" name="code">
+<i>Time complexity: O(1)</i><blockquote>Return the type of the value stored at <i>key</i> in form of astring. The type can be one of &quot;none&quot;, &quot;string&quot;, &quot;list&quot;, &quot;set&quot;.&quot;none&quot; is returned if the key does not exist.</blockquote>
+<h2><a name="Return value">Return value</a></h2><a href="ReplyTypes.html">Single line reply</a>, specifically:<br/><br/><pre class="codeblock python" name="code">
 &quot;none&quot; if the key does not exist
 &quot;string&quot; if the key contains a String value
 &quot;list&quot; if the key contains a List value

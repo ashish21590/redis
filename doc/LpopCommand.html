@@ -16,22 +16,21 @@
             <div id="pagecontent">
                 <div class="index">
 <!-- This is a (PRE) block.  Make sure it's left aligned or your toc title will be off. -->
-<b>LlenCommand: Contents</b><br>&nbsp;&nbsp;<a href="#LLEN _key_">LLEN _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Return value">Return value</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#See also">See also</a>
+<b>LpopCommand: Contents</b><br>&nbsp;&nbsp;<a href="#LPOP _key_">LPOP _key_</a><br>&nbsp;&nbsp;<a href="#RPOP _key_">RPOP _key_</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Return value">Return value</a><br>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#See also">See also</a>
                 </div>
                 
-                <h1 class="wikiname">LlenCommand</h1>
+                <h1 class="wikiname">LpopCommand</h1>
 
                 <div class="summary">
                     
                 </div>
 
                 <div class="narrow">
-                    <h1><a name="LLEN _key_">LLEN _key_</a></h1>
-<i>Time complexity: O(1)</i><blockquote>Return the length of the list stored at the specified key. If thekey does not exist zero is returned (the same behaviour as forempty lists). If the value stored at <i>key</i> is not a list an error is returned.</blockquote>
-<h2><a name="Return value">Return value</a></h2><a href="ReplyTypes.html">Integer reply</a>, specifically:<br/><br/><pre class="codeblock python" name="code">
-The length of the list as an integer `&gt;=` 0 if the operation succeeded
--2 if the specified key does not hold a list value
-</pre>Note that library clients should raise an error if -2 is returned by the Redis server instead to pass the negative value back to the caller.<h2><a name="See also">See also</a></h2>
+                    <h1><a name="LPOP _key_">LPOP _key_</a></h1>
+<h1><a name="RPOP _key_">RPOP _key_</a></h1>
+<i>Time complexity: O(1)</i><blockquote>Atomically return and remove the first (LPOP) or last (RPOP) elementof the list. For example if the list contains the elements &quot;a&quot;,&quot;b&quot;,&quot;c&quot; LPOPwill return &quot;a&quot; and the list will become &quot;b&quot;,&quot;c&quot;.</blockquote>
+<blockquote>If the <i>key</i> does not exist or the list is already empty the specialvalue 'nil' is returned.</blockquote>
+<h2><a name="Return value">Return value</a></h2><a href="ReplyTypes.html">Bulk reply</a><h2><a name="See also">See also</a></h2>
 <ul><li> <a href="LlenCommand.html">LLEN</a></li><li> <a href="LrangeCommand.html">LRANGE</a></li><li> <a href="LtrimCommand.html">LTRIM</a></li><li> <a href="LdelCommand.html">LDEL</a></li><li> <a href="LindexCommand.html">LINDEX</a></li><li> <a href="LsetCommand.html">LSET</a></li></ul>
                 </div>
         
