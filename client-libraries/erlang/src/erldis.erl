@@ -6,7 +6,7 @@
 %% helpers
 flatten({error, Message}) ->
     {error, Message};
-flatten(List) when is_list(List)->
+flatten(List) when is_list(List)->   
     lists:flatten(List).
 
 %% exposed API
@@ -42,6 +42,10 @@ randomkey(Client, Key) -> client:ssend(Client, randomkey, [Key]).
 rename(Client, OldKey, NewKey) -> client:ssend(Client, rename, [OldKey, NewKey]).
 renamenx(Client, OldKey, NewKey) -> client:ssend(Client, renamenx, [OldKey, NewKey]).
 
+%% Commands operating on both lists and sets
+sort(Client, Key) -> client:ssend(Client, sort, [Key]).
+sort(Client, Key, Extra) -> client:ssend(Client, sort, [Key, Extra]).    
+
 %% Commands operating on lists
 rpush(Client, Key, Value) -> internal_set_like(Client, rpush, Key, Value).
 lpush(Client, Key, Value) -> internal_set_like(Client, lpush, Key, Value).
@@ -51,6 +55,9 @@ ltrim(Client, Key, Start, End) -> client:ssend(Client, ltrim, [Key, Start, End])
 lindex(Client, Key, Index) -> client:ssend(Client, lindex, [Key, Index]).
 lpop(Client, Key) -> client:ssend(Client, lpop, [Key]).
 rpop(Client, Key) -> client:ssend(Client, rpop, [Key]).
+lrem(Client, Key, Number, Value) ->
+    client:send(Client, lrem, [[Key, Number, length(Value)],
+                               [Value]]).
 lset(Client, Key, Index, Value) ->
     client:send(Client, lset, [[Key, Index, length(Value)],
                                [Value]]).
@@ -65,12 +72,11 @@ smembers(Client, Key) -> client:ssend(Client, smembers, [Key]).
 
 
 %% Multiple DB commands
+flushdb(Client) -> client:ssend(Client, flushdb).
+flushall(Client) -> client:ssend(Client, flushall).
 select(Client, Index) -> client:ssend(Client, select, [Index]).
 move(Client, Key, DBIndex) -> client:ssend(Client, move, [Key, DBIndex]).
 save(Client) -> client:ssend(Client, save).
 bgsave(Client) -> client:ssend(Client, bgsave).
 lastsave(Client) -> client:ssend(Client, lastsave).
 shutdown(Client) -> client:asend(Client, shutdown).
-
-
-

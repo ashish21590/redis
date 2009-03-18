@@ -41,8 +41,11 @@ get_parser(Cmd)
         orelse Cmd =:= rpush orelse Cmd =:= lpush orelse Cmd =:= ltrim
         orelse Cmd =:= lset orelse Cmd =:= sadd orelse Cmd =:= srem
         orelse Cmd =:= sismember orelse Cmd =:= select orelse Cmd =:= move
-        orelse Cmd =:= save orelse Cmd =:= bgsave ->
+        orelse Cmd =:= save orelse Cmd =:= bgsave orelse Cmd =:= flushdb
+        orelse Cmd =:= flushall ->
     fun proto:parse/2;
+get_parser(Cmd) when Cmd =:= lrem ->
+    fun proto:parse_special/2;
 get_parser(Cmd)
     when Cmd =:= incr orelse Cmd =:= incrby orelse Cmd =:= decr
         orelse Cmd =:= decrby orelse Cmd =:= llen orelse Cmd =:= scard ->
@@ -57,7 +60,7 @@ get_parser(Cmd)
     fun proto:single_stateful_parser/2;
 get_parser(Cmd)
     when Cmd =:= keys orelse Cmd =:= lrange orelse Cmd =:= sinter
-        orelse Cmd =:= smembers ->
+        orelse Cmd =:= smembers orelse Cmd =:= sort ->
     fun proto:stateful_parser/2.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -175,7 +178,7 @@ get_remaining(ParsersQueue) ->
 save_or_reply(Result, State=#redis{results=Results, reply_caller=ReplyCaller, parsers=Parsers}) ->
     case get_remaining(Parsers) of
         1 ->
-            State#redis{results=[Result|Results], remaining=1};
+            State#redis{results=[Result|Results], remaining=1, pstate=empty, buffer=[]};
         0 ->
             % We don't reverse results here because if all the requests
             % come in and then we submit another one, if we reverse

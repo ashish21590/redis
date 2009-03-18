@@ -16,11 +16,12 @@ utils_test() ->
 
 pipeline_test() ->
     {ok, Client} = erldis:connect("localhost"),
+    erldis:flushall(Client),
     erldis:get(Client, "pippo"),
     erldis:set(Client, "hello", "kitty!"),
     erldis:setnx(Client, "foo", "bar"),
     erldis:setnx(Client, "foo", "bar"),
-    [nil, ok, true, false] = erldis:get_all_results(Client),
+    [ok, nil, ok, true, false] = erldis:get_all_results(Client),
 
     erldis:exists(Client, "hello"),
     erldis:exists(Client, "foo"),
@@ -37,9 +38,26 @@ pipeline_test() ->
     erldis:lrange(Client, "foo", 1, 2),
     erldis:lrange(Client, "pippo", 1, 2),
     [ok, {error, wrong_type}, nil,
-        {error, "LRANGE against key not holding a list value"}
+        {error, "Operation against a key holding the wrong kind of value"}
         ] = erldis:get_all_results(Client),
     erldis:del(Client, "pippo"),
+    [true] = erldis:get_all_results(Client),
+
+    erldis:rpush(Client, "a_list", "1"),
+    erldis:rpush(Client, "a_list", "2"),
+    erldis:rpush(Client, "a_list", "3"),
+    erldis:rpush(Client, "a_list", "1"),
+    erldis:lrem(Client, "a_list", 1, "1"),
+    erldis:lrange(Client, "a_list", 0, 2),
+    [ok, ok, ok, ok, 1, ["2", "3", "1"]] = erldis:get_all_results(Client),
+
+    erldis:sort(Client, "a_list"),
+    erldis:sort(Client, "a_list", "DESC"), 
+    erldis:lrange(Client, "a_list", 0, 2),
+    erldis:sort(Client, "a_list", "LIMIT 0 2 ASC"),
+    [["1", "2", "3"], ["3", "2", "1"], ["2", "3", "1"],
+     ["1", "2"]] = erldis:get_all_results(Client),
+
     ok = erldis:quit(Client).
 
 
