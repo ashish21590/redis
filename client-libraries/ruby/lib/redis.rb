@@ -1,5 +1,6 @@
 require 'socket'
-require 'timeout'
+require File.join(File.dirname(__FILE__),'better_timeout')
+require 'set'
 
 class RedisError < StandardError
 end
@@ -33,8 +34,11 @@ class Redis
   # 
   # Return value: status code reply
   def []=(key, val)
-    write "SET #{key} #{val.to_s.size}\r\n#{val}\r\n"
-    status_code_reply  
+    val = redis_marshal(val)
+    timeout_retry(3, 3){
+      write "SET #{key} #{val.to_s.size}\r\n#{val}\r\n"
+      status_code_reply  
+    }
   end
   
   # SETNX key value
@@ -47,8 +51,11 @@ class Redis
   # 
   # 1 if the key was set 0 if the key was not set
   def set_unless_exists(key, val)
-    write "SETNX #{key} #{val.to_s.size}\r\n#{val}\r\n"
-    integer_reply == 1
+    val = redis_marshal(val)
+    timeout_retry(3, 3){
+      write "SETNX #{key} #{val.to_s.size}\r\n#{val}\r\n"
+      integer_reply == 1
+    }
   end
   
   # GET key
@@ -59,8 +66,10 @@ class Redis
   #
   # Return value: bulk reply
   def [](key)
-    write "GET #{key}\r\n"
-    bulk_reply
+    timeout_retry(3, 3){
+      write "GET #{key}\r\n"
+      redis_unmarshal(bulk_reply)
+    }
   end
   
   # INCR key
@@ -74,12 +83,14 @@ class Redis
   # 
   # Return value: integer reply
   def incr(key, increment=nil)
-    if increment
-      write "INCRBY #{key} #{increment}\r\n"
-    else
-      write "INCR #{key}\r\n"
-    end    
-    integer_reply
+    timeout_retry(3, 3){
+      if increment
+        write "INCRBY #{key} #{increment}\r\n"
+      else
+        write "INCR #{key}\r\n"
+      end    
+      integer_reply
+    }
   end
 
   
@@ -89,12 +100,14 @@ class Redis
   # 
   # Time complexity: O(1) Like INCR/INCRBY but decrementing instead of incrementing.
   def decr(key, increment=nil)
-    if increment
-      write "DECRBY #{key} #{increment}\r\n"
-    else
-      write "DECR #{key}\r\n"
-    end    
-    integer_reply
+    timeout_retry(3, 3){
+      if increment
+        write "DECRBY #{key} #{increment}\r\n"
+      else
+        write "DECR #{key}\r\n"
+      end    
+      integer_reply
+    }
   end
   
   # RANDOMKEY
@@ -103,8 +116,10 @@ class Redis
   # 
   # Return value: single line reply
   def randkey
-    write "RANDOMKEY\r\n"
-    single_line_reply
+    timeout_retry(3, 3){
+      write "RANDOMKEY\r\n"
+      single_line_reply
+    }
   end
 
   # RENAME oldkey newkey
@@ -115,8 +130,10 @@ class Redis
   #
   # Return value: status code reply
   def rename!(oldkey, newkey)
-    write "RENAME #{oldkey} #{newkey}\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "RENAME #{oldkey} #{newkey}\r\n"
+      status_code_reply
+    }
   end
   
   # RENAMENX oldkey newkey
@@ -127,17 +144,19 @@ class Redis
   # 1 if the key was renamed 0 if the target key already exist -1 if the 
   # source key does not exist -3 if source and destination keys are the same
   def rename(oldkey, newkey)
-    write "RENAMENX #{oldkey} #{newkey}\r\n"
-    case integer_reply
-    when -1
-      raise RedisError, "source key: #{oldkey} does not exist"
-    when 0
-      raise RedisError, "target key: #{oldkey} already exists"
-    when -3
-      raise RedisError, "source and destination keys are the same"
-    when 1
-      true
-    end
+    timeout_retry(3, 3){
+      write "RENAMENX #{oldkey} #{newkey}\r\n"
+      case integer_reply
+      when -1
+        raise RedisError, "source key: #{oldkey} does not exist"
+      when 0
+        raise RedisError, "target key: #{oldkey} already exists"
+      when -3
+        raise RedisError, "source and destination keys are the same"
+      when 1
+        true
+      end
+    }
   end
   
   # EXISTS key
@@ -150,8 +169,10 @@ class Redis
   # 
   # 1 if the key exists 0 if the key does not exist
   def key?(key)
-    write "EXISTS #{key}\r\n"
-    integer_reply == 1
+    timeout_retry(3, 3){
+      write "EXISTS #{key}\r\n"
+      integer_reply == 1
+    }
   end
   
   # DEL key
@@ -163,8 +184,10 @@ class Redis
   # 
   # 1 if the key was removed 0 if the key does not exist
   def delete(key)
-    write "DEL #{key}\r\n"
-    integer_reply == 1
+    timeout_retry(3, 3){
+      write "DEL #{key}\r\n"
+      integer_reply == 1
+    }
   end
   
   # KEYS pattern
@@ -180,8 +203,10 @@ class Redis
   # 
   # Return value: bulk reply
   def keys(glob)
-    write "KEYS #{glob}\r\n"
-    bulk_reply.split(' ')
+    timeout_retry(3, 3){
+      write "KEYS #{glob}\r\n"
+      bulk_reply.split(' ')
+    }
   end
   
   # TYPE key
@@ -192,8 +217,10 @@ class Redis
   # 
   # Return value: single line reply
   def type?(key)
-    write "TYPE #{key}\r\n"
-    single_line_reply
+    timeout_retry(3, 3){
+      write "TYPE #{key}\r\n"
+      single_line_reply
+    }
   end
   
   # RPUSH key string
@@ -205,8 +232,10 @@ class Redis
   # 
   # Return value: status code reply
   def push_tail(key, string)
-    write "RPUSH #{key} #{string.to_s.size}\r\n#{string}\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "RPUSH #{key} #{string.to_s.size}\r\n#{string.to_s}\r\n"
+      status_code_reply
+    }
   end
   
   # LPUSH key string
@@ -217,8 +246,10 @@ class Redis
   # 
   # Return value: status code reply
   def push_head(key, string)
-    write "LPUSH #{key} #{string.to_s.size}\r\n#{string}\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "LPUSH #{key} #{string.to_s.size}\r\n#{string.to_s}\r\n"
+      status_code_reply
+    }
   end
   
   # LPOP key
@@ -233,16 +264,20 @@ class Redis
   # 
   # Return value: bulk reply
   def pop_head(key)
-    write "LPOP #{key}\r\n"
-    bulk_reply
+    timeout_retry(3, 3){
+      write "LPOP #{key}\r\n"
+      bulk_reply
+    }
   end
   
   # RPOP key
   #     This command works exactly like LPOP, but the last element instead
   #     of the first element of the list is returned/deleted.
   def pop_tail(key)
-    write "RPOP #{key}\r\n"
-    bulk_reply
+    timeout_retry(3, 3){
+      write "RPOP #{key}\r\n"
+      bulk_reply
+    }
   end
   
   # LSET key index value
@@ -251,8 +286,10 @@ class Redis
   # 
   # Return value: status code reply
   def list_set(key, index, val)
-    write "LSET #{key} #{index} #{val.to_s.size}\r\n#{val}\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "LSET #{key} #{index} #{val.to_s.size}\r\n#{val}\r\n"
+      status_code_reply
+    }
   end
   
   
@@ -270,13 +307,15 @@ class Redis
   # >=
   # 0 if the operation succeeded -2 if the specified key does not hold a list valu
   def list_length(key)
-    write "LLEN #{key}\r\n"
-    case i = integer_reply
-    when -2
-      raise RedisError, "key: #{key} does not hold a list value"
-    else
-      i
-    end
+    timeout_retry(3, 3){
+      write "LLEN #{key}\r\n"
+      case i = integer_reply
+      when -2
+        raise RedisError, "key: #{key} does not hold a list value"
+      else
+        i
+      end
+    }
   end
   
   # LRANGE key start end
@@ -296,8 +335,10 @@ class Redis
   # 
   # Return value: multi bulk reply
   def list_range(key, start, ending)
-    write "LRANGE #{key} #{start} #{ending}\r\n"
-    multi_bulk_reply
+    timeout_retry(3, 3){
+      write "LRANGE #{key} #{start} #{ending}\r\n"
+      multi_bulk_reply
+    }
   end
 
   
@@ -329,8 +370,10 @@ class Redis
   #
   # Return value: status code reply
   def list_trim(key, start, ending)
-    write "LTRIM #{key} #{start} #{ending}\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "LTRIM #{key} #{start} #{ending}\r\n"
+      status_code_reply
+    }
   end
   
   # LINDEX key index
@@ -347,8 +390,10 @@ class Redis
   # 
   # Return value: bulk reply
   def list_index(key, index)
-    write "LINDEX #{key} #{index}\r\n"
-    bulk_reply
+    timeout_retry(3, 3){
+      write "LINDEX #{key} #{index}\r\n"
+      bulk_reply
+    }
   end
   
   # SADD key member
@@ -363,15 +408,17 @@ class Redis
   # 1 if the new element was added 0 if the new element was already a member
   # of the set -2 if the key contains a non set value
   def set_add(key, member)
-    write "SADD #{key} #{member.to_s.size}\r\n#{member}\r\n"
-    case integer_reply
-    when 1
-      true
-    when 0
-      false
-    when -2
-      raise RedisError, "key: #{key} contains a non set value"
-    end
+    timeout_retry(3, 3){
+      write "SADD #{key} #{member.to_s.size}\r\n#{member}\r\n"
+      case integer_reply
+      when 1
+        true
+      when 0
+        false
+      when -2
+        raise RedisError, "key: #{key} contains a non set value"
+      end
+    }
   end
   
   # SREM key member
@@ -386,15 +433,17 @@ class Redis
   # 1 if the new element was removed 0 if the new element was not a member 
   # of the set -2 if the key does not hold a set value
   def set_delete(key, member)
-    write "SREM #{key} #{member.to_s.size}\r\n#{member}\r\n"
-    case integer_reply
-    when 1
-      true
-    when 0
-      false
-    when -2
-      raise RedisError, "key: #{key} contains a non set value"
-    end
+    timeout_retry(3, 3){
+      write "SREM #{key} #{member.to_s.size}\r\n#{member}\r\n"
+      case integer_reply
+      when 1
+        true
+      when 0
+        false
+      when -2
+        raise RedisError, "key: #{key} contains a non set value"
+      end
+    }
   end
   
   # SCARD key
@@ -410,13 +459,15 @@ class Redis
   # >=
   # 0 if the operation succeeded -2 if the specified key does not hold a set value
   def set_count(key)
-    write "SCARD #{key}\r\n"
-    case i = integer_reply
-    when -2
-      raise RedisError, "key: #{key} contains a non set value"
-    else
-      i
-    end
+    timeout_retry(3, 3){
+      write "SCARD #{key}\r\n"
+      case i = integer_reply
+      when -2
+        raise RedisError, "key: #{key} contains a non set value"
+      else
+        i
+      end
+    }
   end
   
   # SISMEMBER key member
@@ -432,15 +483,17 @@ class Redis
   # 1 if the element is a member of the set 0 if the element is not a member of
   # the set OR if the key does not exist -2 if the key does not hold a set value
   def set_member?(key, member)
-    write "SISMEMBER #{key} #{member.to_s.size}\r\n#{member}\r\n"
-    case integer_reply
-    when 1
-      true
-    when 0
-      false
-    when -2
-      raise RedisError, "key: #{key} contains a non set value"
-    end
+    timeout_retry(3, 3){
+      write "SISMEMBER #{key} #{member.to_s.size}\r\n#{member}\r\n"
+      case integer_reply
+      when 1
+        true
+      when 0
+        false
+      when -2
+        raise RedisError, "key: #{key} contains a non set value"
+      end
+    }
   end
   
   # SINTER key1 key2 ... keyN
@@ -457,8 +510,23 @@ class Redis
   # 
   # Return value: multi bulk reply
   def set_intersect(*keys)
-    write "SINTER #{keys.join(' ')}\r\n"
-    multi_bulk_reply
+    timeout_retry(3, 3){
+      write "SINTER #{keys.join(' ')}\r\n"
+      Set.new(multi_bulk_reply)
+    }
+  end
+  
+  # SINTERSTORE dstkey key1 key2 ... keyN
+  # 
+  # Time complexity O(N*M) worst case where N is the cardinality of the smallest set and M the number of sets
+  # This commnad works exactly like SINTER but instead of being returned the resulting set is sotred as dstkey.
+  # 
+  # Return value: status code reply
+  def set_inter_store(destkey, *keys)
+    timeout_retry(3, 3){
+      write "SINTERSTORE #{destkey} #{keys.join(' ')}\r\n"
+      status_code_reply
+    }
   end
   
   # SMEMBERS key
@@ -467,11 +535,70 @@ class Redis
   # Return all the members (elements) of the set value stored at key. 
   # This is just syntax glue for SINTERSECT.
   def set_members(key)
-    write "SMEMBERS #{key}\r\n"
-    multi_bulk_reply
+    timeout_retry(3, 3){
+      write "SMEMBERS #{key}\r\n"
+      Set.new(multi_bulk_reply)
+    }
   end
   
   
+  # SORT key [BY pattern] [GET|DEL|INCR|DECR pattern] [ASC|DESC] [LIMIT start count]
+  # Sort the elements contained in the List or Set value at key. By default sorting is 
+  # numeric with elements being compared as double precision floating point numbers. 
+  # This is the simplest form of SORT.
+  # SORT mylist
+  # 
+  # Assuming mylist contains a list of numbers, the return value will be the list of 
+  # numbers ordered from the smallest to the bigger number. In order to get the sorting 
+  # in reverse order use DESC:
+  # SORT mylist DESC
+  #
+  # ASC is also supported but it's the default so you don't really need it. If you 
+  # want to sort lexicographically use ALPHA. Note that Redis is utf-8 aware 
+  # assuming you set the right value for the LC_COLLATE environment variable.
+  #
+  # Sort is able to limit the number of results using the LIMIT option:
+  # SORT mylist LIMIT 0 10
+  # In the above example SORT will return only 10 elements, starting from the first one 
+  # (star is zero-based). Almost all the sort options can be mixed together. For example:
+  # SORT mylist LIMIT 0 10 ALPHA DESC
+  # Will sort mylist lexicographically, in descending order, returning only the first 
+  # 10 elements.
+  # Sometimes you want to sort elements using external keys as weights to compare 
+  # instead to compare the actual List or Set elements. For example the list mylist 
+  # may contain the elements 1, 2, 3, 4, that are just the unique IDs of objects 
+  # stored at object_1, object_2, object_3 and object_4, while the keys weight_1, 
+  # weight_2, weight_3 and weight_4 can contain weights we want to use to sort the 
+  # list of objects identifiers. We can use the following command:
+  # SORT mylist BY weight_*
+  # the BY option takes a pattern (weight_* in our example) that is used in order to 
+  # generate the key names of the weights used for sorting. Weight key names are obtained 
+  # substituting the first occurrence of * with the actual value of the elements on the 
+  # list (1,2,3,4 in our example).
+  # Still our previous example will return just the sorted IDs. Often it is needed to 
+  # get the actual objects sorted (object_1, ..., object_4 in the example). We can do 
+  # it with the following command:
+  # SORT mylist BY weight_* GET object_*
+  # Note that GET can be used multiple times in order to get more key for every 
+  # element of the original List or Set sorted.
+  
+  # redis.sort 'index', :by => 'weight_*',
+  #                     :order => 'DESC ALPHA',
+  #                     :limit => [0,10],
+  #                     :get => 'obj_*'
+  def sort(key, opts={})
+    cmd = "SORT #{key}"
+    cmd << " BY #{opts[:by]}" if opts[:by]
+    cmd << " GET #{opts[:get]}" if opts[:get]
+    cmd << " INCR #{opts[:incr]}" if opts[:incr]
+    cmd << " DEL #{opts[:del]}" if opts[:del]
+    cmd << " DECR #{opts[:decr]}" if opts[:decr]
+    cmd << " #{opts[:order]}" if opts[:order]
+    cmd << " LIMIT #{opts[:limit].join(' ')}" if opts[:limit]
+    cmd << "\r\n"
+    write cmd
+    multi_bulk_reply
+  end
   
   # ADMIN functions for redis
   
@@ -481,8 +608,10 @@ class Redis
   # For default every new client connection is automatically selected to DB 0.
   # Return value: status code reply
   def select_db(index)
-    write "SELECT #{index}\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "SELECT #{index}\r\n"
+      status_code_reply
+    }
   end
 
   # MOVE key dbindex
@@ -500,17 +629,19 @@ class Redis
   # if the destination DB is the same as the source DB -4 if the database 
   # index if out of range
   def move(key, index)
-    write "MOVE #{index}\r\n"
-    case integer_reply
-    when 1
-      true
-    when 0
-      false
-    when -3
-      raise RedisError, "destination db same as source db"
-    when -4
-      raise RedisError, "db index if out of range"
-    end
+    timeout_retry(3, 3){
+      write "MOVE #{index}\r\n"
+      case integer_reply
+      when 1
+        true
+      when 0
+        false
+      when -3
+        raise RedisError, "destination db same as source db"
+      when -4
+        raise RedisError, "db index if out of range"
+      end
+    }
   end
   
   # SAVE
@@ -520,8 +651,10 @@ class Redis
   # the DB was fully stored in disk.
   # Return value: status code reply
   def save
-    write "SAVE\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "SAVE\r\n"
+      status_code_reply
+    }
   end
   
   # BGSAVE
@@ -532,8 +665,10 @@ class Redis
   # succeeded using the LASTSAVE command.
   # Return value: status code reply
   def bgsave
-    write "BGSAVE\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "BGSAVE\r\n"
+      status_code_reply
+    }
   end
   
   # LASTSAVE
@@ -544,17 +679,38 @@ class Redis
   # if LASTSAVE changed.
   #
   # Return value: integer reply (UNIX timestamp)
-  def bgsave
-    write "LASTSAVE\r\n"
-    integer_reply
+  def lastsave
+    timeout_retry(3, 3){
+      write "LASTSAVE\r\n"
+      integer_reply
+    }
   end
   
   def quit
-    write "QUIT\r\n"
-    status_code_reply
+    timeout_retry(3, 3){
+      write "QUIT\r\n"
+      status_code_reply
+    }
   end
   
   private
+  
+  def redis_unmarshal(obj)
+    if obj[0] == 4
+      Marshal.load(obj)       
+    else
+      obj
+    end
+  end
+  
+  def redis_marshal(obj)
+    case obj
+    when String, Integer
+      obj
+    else
+      Marshal.dump(obj)
+    end
+  end
   
   def close
     socket.close unless socket.closed?
@@ -657,7 +813,12 @@ class Redis
       items = Integer(res)
       list = []
       items.times do
-        list << read(Integer(read_proto))
+        len = Integer(read_proto)
+        if len == -1
+          nil
+        else
+          list << read(len)
+        end
         nibble_end
       end  
       list

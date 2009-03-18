@@ -8,7 +8,14 @@ class DistRedis
       server, port = s.split(':')
       srvs << Redis.new(:host => server, :port => port)
     end
-    @ring = HashRing.new srvs, 3
+    @ring = HashRing.new srvs
+  end
+  
+  def node_for_key(key)
+    if key =~ /\{(.*)?\}/
+      key = $1
+    end
+    @ring.get_node(key)
   end
   
   def add_server(server)
@@ -17,7 +24,7 @@ class DistRedis
   end
   
   def method_missing(sym, *args, &blk)
-    if redis = @ring.get_node(args.first)
+    if redis = node_for_key(args.first)
       redis.send sym, *args, &blk
     else
       super
@@ -59,6 +66,7 @@ class DistRedis
   end
   
 end
+
 
 if __FILE__ == $0
 

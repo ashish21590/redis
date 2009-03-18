@@ -1,5 +1,16 @@
 require File.dirname(__FILE__) + '/spec_helper'
 
+class Foo
+  attr_accessor :bar
+  def initialize(bar)
+    @bar = bar
+  end
+  
+  def ==(other)
+    @bar == other.bar
+  end
+end  
+
 describe "redis" do
   before do
     @r = Redis.new
@@ -10,7 +21,15 @@ describe "redis" do
   after do
     @r.keys('*').each {|k| @r.delete k }
   end  
-  
+
+  it "should properly marshall objects" do
+   class MyFail; def fail; 'it will' end; end
+
+   @r['fail'] = MyFail.new
+   @r['fail'].fail.should == 'it will'
+
+  end
+
   it "should be able to GET a key" do
     @r['foo'].should == 'bar'
   end
@@ -91,8 +110,10 @@ describe "redis" do
   
   it "should be able to push to the head of a list" do
     @r.push_head "list", 'hello'
+    @r.push_head "list", 42
     @r.type?('list').should == "list"
-    @r.list_length('list').should == 1
+    @r.list_length('list').should == 2
+    @r.pop_head('list').should == '42'
     @r.delete('list')
   end
   
@@ -188,10 +209,10 @@ describe "redis" do
     @r.set_add "set", 'key2'
     @r.type?('set').should == "set"
     @r.set_count('set').should == 2
-    @r.set_members('set').sort.should == ['key1', 'key2'].sort
+    @r.set_members('set').should == Set.new(['key1', 'key2'])
     @r.set_delete('set', 'key1')
     @r.set_count('set').should == 1
-    @r.set_members('set').sort.should == ['key2'].sort
+    @r.set_members('set').should == Set.new(['key2'])
     @r.delete('set')
   end
   
@@ -218,7 +239,29 @@ describe "redis" do
     @r.set_add "set", 'key1'
     @r.set_add "set", 'key2'
     @r.set_add "set2", 'key2'
-    @r.set_intersect('set', 'set2').should == ['key2']
+    @r.set_intersect('set', 'set2').should == Set.new(['key2'])
     @r.delete('set')
+  end
+  
+  it "should be able to do set intersection and store the results in a key" do
+    @r.set_add "set", 'key1'
+    @r.set_add "set", 'key2'
+    @r.set_add "set2", 'key2'
+    @r.set_inter_store('newone', 'set', 'set2')
+    @r.set_members('newone').should == Set.new(['key2'])
+    @r.delete('set')
+  end
+  
+  it "should be able to do crazy SORT queries" do
+    @r['dog_1'] = 'louie'
+    @r.push_tail 'dogs', 1
+    @r['dog_2'] = 'lucy'
+    @r.push_tail 'dogs', 2
+    @r['dog_3'] = 'max'
+    @r.push_tail 'dogs', 3
+    @r['dog_4'] = 'taj'
+    @r.push_tail 'dogs', 4
+    @r.sort('dogs', :get => 'dog_*', :limit => [0,1]).should == ['louie']
+    @r.sort('dogs', :get => 'dog_*', :limit => [0,1], :order => 'desc alpha').should == ['taj']
   end
 end
