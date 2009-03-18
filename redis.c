@@ -27,6 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define REDIS_VERSION "0.07"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -270,6 +272,7 @@ static void flushdbCommand(redisClient *c);
 static void flushallCommand(redisClient *c);
 static void sortCommand(redisClient *c);
 static void lremCommand(redisClient *c);
+static void versionCommand(redisClient *c);
 
 /*================================= Globals ================================= */
 
@@ -320,6 +323,7 @@ static struct redisCommand cmdTable[] = {
     {"flushdb",flushdbCommand,1,REDIS_CMD_INLINE},
     {"flushall",flushallCommand,1,REDIS_CMD_INLINE},
     {"sort",sortCommand,-2,REDIS_CMD_INLINE},
+    {"version",versionCommand,1,REDIS_CMD_INLINE},
     {"",NULL,0,0}
 };
 
@@ -2732,6 +2736,11 @@ static void sortCommand(redisClient *c) {
     free(vector);
 }
 
+static void versionCommand(redisClient *c) {
+    addReplySds(c,sdsnew(REDIS_VERSION));
+    addReply(c,shared.crlf);
+}
+
 /* =============================== Replication  ============================= */
 
 /* Send the whole output buffer syncronously to the slave. This a general operation in theory, but it is actually useful only for replication. */
@@ -2932,6 +2941,7 @@ static int syncWithMaster(void) {
 
 static void daemonize(void) {
     int fd;
+    FILE *fp;
 
     if (fork() != 0) exit(0); /* parent exits */
     setsid(); /* create a new session */
@@ -2944,6 +2954,12 @@ static void daemonize(void) {
         dup2(fd, STDOUT_FILENO);
         dup2(fd, STDERR_FILENO);
         if (fd > STDERR_FILENO) close(fd);
+    }
+    /* Try to write the pid file */
+    fp = fopen("/var/run/redis.pid","w");
+    if (fp) {
+        fprintf(fp,"%d\n",getpid());
+        fclose(fp);
     }
 }
 
@@ -2958,7 +2974,7 @@ int main(int argc, char **argv) {
     }
     initServer();
     if (server.daemonize) daemonize();
-    redisLog(REDIS_NOTICE,"Server started");
+    redisLog(REDIS_NOTICE,"Server started, Redis version " REDIS_VERSION);
     if (loadDb(server.dbfilename) == REDIS_OK)
         redisLog(REDIS_NOTICE,"DB loaded from disk");
     if (aeCreateFileEvent(server.el, server.fd, AE_READABLE,
