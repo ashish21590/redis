@@ -1,8 +1,9 @@
-BETA 7 TODO
+BETA 8 TODO
 - keys expire
 - sunion ssub
 - write integers in a special way on disk (and on memory?)
 - compact types for disk storing of short strings (no 4 bytes overhead!)
 - network layer stresser in test in demo
 - maxclients directive
-- check dirty everywere
+- check 'server.dirty' everywere
+- replication tests
