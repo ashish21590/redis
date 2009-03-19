@@ -553,10 +553,6 @@ proc main {server port} {
         list [redis_lrange $fd mylist 0 -1] $res
     } {{foo bar foobar foobared zap test} 2}
 
-    test {Unknown command test (regression for issue #21)} {
-        redis_unknown $fd
-    } {-ERR*}
-
     # Leave the user with a clean DB before to exit
     test {FLUSHALL} {
         redis_flushall $fd
@@ -802,11 +798,6 @@ proc redis_flushdb {fd} {
 proc redis_lrem {fd key count val} {
     redis_writenl $fd "lrem $key $count [string length $val]\r\n$val"
     redis_read_integer $fd
-}
-
-proc redis_unknown {fd} {
-    redis_writenl $fd "just-a-command-name-that-does-not-exist\r\n"
-    redis_read_retcode $fd
 }
 
 if {[llength $argv] == 0} {
