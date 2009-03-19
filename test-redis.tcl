@@ -501,7 +501,7 @@ proc main {server port} {
         format {}
     } {}
 
-    test {SORT regression test #1, sorting floats} {
+    test {SORT regression for issue #19, sorting floats} {
         redis_flushdb $fd
         foreach x {1.1 5.10 3.10 7.44 2.1 5.75 6.12 0.25 1.15} {
             redis_lpush $fd mylist $x
@@ -552,6 +552,10 @@ proc main {server port} {
         set res [redis_lrem $fd mylist -2 foo]
         list [redis_lrange $fd mylist 0 -1] $res
     } {{foo bar foobar foobared zap test} 2}
+
+    test {Unknown command test (regression for issue #21)} {
+        redis_unknown $fd
+    } {-ERR*}
 
     # Leave the user with a clean DB before to exit
     test {FLUSHALL} {
@@ -798,6 +802,11 @@ proc redis_flushdb {fd} {
 proc redis_lrem {fd key count val} {
     redis_writenl $fd "lrem $key $count [string length $val]\r\n$val"
     redis_read_integer $fd
+}
+
+proc redis_unknown {fd} {
+    redis_writenl $fd "just-a-command-name-that-does-not-exist\r\n"
+    redis_read_retcode $fd
 }
 
 if {[llength $argv] == 0} {

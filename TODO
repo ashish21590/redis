@@ -7,3 +7,11 @@ BETA 8 TODO
 - maxclients directive
 - check 'server.dirty' everywere
 - replication tests
+- command line client. If the last argument of a bulk command is missing get it from stdin. Example:
+    $ echo "bar" | redis-client SET foo
+    $ redis-client SET foo bar
+    $ redis-client GET foo
+    bar
+    $
+- Make Redis aware of the memory it is using thanks to getrusage() and report this info with the INFO command.
+- INFO command: clients, slave/master, requests/second in the last N seconds, memory usage, uptime, dirty, lastsave

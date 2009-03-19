@@ -44,6 +44,8 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "ae.h"     /* Event driven programming library */
 #include "sds.h"    /* Dynamic safe strings */
@@ -157,6 +159,7 @@ struct redisServer {
     int cronloops;              /* number of times the cron function run */
     list *objfreelist;          /* A list of freed objects to avoid malloc() */
     time_t lastsave;            /* Unix time of last save succeeede */
+    int usedmemory;             /* Used memory in megabytes */
     /* Configuration */
     int verbosity;
     int glueoutputbuf;
@@ -324,7 +327,7 @@ static struct redisCommand cmdTable[] = {
     {"flushall",flushallCommand,1,REDIS_CMD_INLINE},
     {"sort",sortCommand,-2,REDIS_CMD_INLINE},
     {"version",versionCommand,1,REDIS_CMD_INLINE},
-    {"",NULL,0,0}
+    {NULL,NULL,0,0}
 };
 
 /*============================ Utility functions ============================ */
@@ -586,7 +589,9 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Show information about connected clients */
-    if (!(loops % 5)) redisLog(REDIS_DEBUG,"%d clients connected (%d slaves)",listLength(server.clients),listLength(server.slaves));
+    if (!(loops % 5)) redisLog(REDIS_DEBUG,"%d clients connected (%d slaves)",
+        listLength(server.clients)-listLength(server.slaves),
+        listLength(server.slaves));
 
     /* Close connections of timedout clients */
     if (!(loops % 10))
@@ -739,6 +744,7 @@ static void initServer() {
     server.bgsaveinprogress = 0;
     server.lastsave = time(NULL);
     server.dirty = 0;
+    server.usedmemory = 0;
     aeCreateTimeEvent(server.el, 1000, serverCron, NULL, NULL);
 }
 
