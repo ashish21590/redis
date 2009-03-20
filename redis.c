@@ -2581,6 +2581,11 @@ static void sortCommand(redisClient *c) {
     listSetFreeMethod(operations,free);
     j = 2;
 
+    /* Now we need to protect sortval incrementing its count, in the future
+     * SORT may have options able to overwrite/delete keys during the sorting
+     * and the sorted key itself may get destroied */
+    incrRefCount(sortval);
+
     /* The SORT command has an SQL-alike syntax, parse it */
     while(j < c->argc) {
         int leftargs = c->argc-j-1;
@@ -2618,6 +2623,7 @@ static void sortCommand(redisClient *c) {
                 REDIS_SORT_DECR,c->argv[j+1]));
             j++;
         } else {
+            decrRefCount(sortval);
             listRelease(operations);
             addReply(c,shared.syntaxerrbulk);
             return;
@@ -2638,7 +2644,7 @@ static void sortCommand(redisClient *c) {
         while(ln) {
             robj *ele = ln->value;
             vector[j].obj = ele;
-            incrRefCount(ele);
+            //incrRefCount(ele);
             vector[j].u.score = 0;
             vector[j].u.cmpobj = NULL;
             ln = ln->next;
@@ -2653,7 +2659,7 @@ static void sortCommand(redisClient *c) {
         if (!di) oom("dictGetIterator");
         while((setele = dictNext(di)) != NULL) {
             vector[j].obj = dictGetEntryKey(setele);
-            incrRefCount(vector[j].obj);
+            //incrRefCount(vector[j].obj);
             vector[j].u.score = 0;
             vector[j].u.cmpobj = NULL;
             j++;
@@ -2733,9 +2739,10 @@ static void sortCommand(redisClient *c) {
     }
 
     /* Cleanup */
+    decrRefCount(sortval);
     listRelease(operations);
     for (j = 0; j < vectorlen; j++) {
-        decrRefCount(vector[j].obj);
+        //decrRefCount(vector[j].obj);
         if (sortby && alpha && vector[j].u.cmpobj)
             decrRefCount(vector[j].u.cmpobj);
     }
