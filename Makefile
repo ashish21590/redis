@@ -8,10 +8,13 @@ CCOPT= $(CFLAGS)
 
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o
 BENCHOBJ = ae.o anet.o benchmark.o sds.o adlist.o
+CLIOBJ = anet.o sds.o adlist.o redis-cli.o
+
 PRGNAME = redis-server
 BENCHPRGNAME = redis-benchmark
+CLIPRGNAME = redis-cli
 
-all: redis-server redis-benchmark
+all: redis-server redis-benchmark redis-cli
 
 # Deps (use make dep to generate this)
 adlist.o: adlist.c adlist.h
@@ -32,11 +35,14 @@ redis-server: $(OBJ)
 redis-benchmark: $(BENCHOBJ)
 	$(CC) -o $(BENCHPRGNAME) $(CCOPT) $(DEBUG) $(BENCHOBJ)
 
+redis-cli: $(CLIOBJ)
+	$(CC) -o $(CLIPRGNAME) $(CCOPT) $(DEBUG) $(CLIOBJ)
+
 .c.o:
 	$(CC) -c $(CCOPT) $(DEBUG) $(COMPILE_TIME) $<
 
 clean:
-	rm -rf $(PRGNAME) $(BENCHPRGNAME) *.o
+	rm -rf $(PRGNAME) $(BENCHPRGNAME) $(CLIPRGNAME) *.o
 
 dep:
 	$(CC) -MM *.c
