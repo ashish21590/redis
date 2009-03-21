@@ -38,7 +38,9 @@
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
+
 #include "dict.h"
+#include "zmalloc.h"
 
 /* ---------------------------- Utility funcitons --------------------------- */
 
@@ -57,14 +59,14 @@ static void _dictPanic(const char *fmt, ...)
 
 static void *_dictAlloc(int size)
 {
-    void *p = malloc(size);
+    void *p = zmalloc(size);
     if (p == NULL)
         _dictPanic("Out of memory");
     return p;
 }
 
 static void _dictFree(void *ptr) {
-    free(ptr);
+    zfree(ptr);
 }
 
 /* -------------------------- private prototypes ---------------------------- */

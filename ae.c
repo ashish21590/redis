@@ -30,18 +30,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ae.h"
-
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "ae.h"
+#include "zmalloc.h"
+
 aeEventLoop *aeCreateEventLoop(void) {
     aeEventLoop *eventLoop;
 
-    eventLoop = malloc(sizeof(*eventLoop));
+    eventLoop = zmalloc(sizeof(*eventLoop));
     if (!eventLoop) return NULL;
     eventLoop->fileEventHead = NULL;
     eventLoop->timeEventHead = NULL;
@@ -51,7 +52,7 @@ aeEventLoop *aeCreateEventLoop(void) {
 }
 
 void aeDeleteEventLoop(aeEventLoop *eventLoop) {
-    free(eventLoop);
+    zfree(eventLoop);
 }
 
 void aeStop(aeEventLoop *eventLoop) {
@@ -64,7 +65,7 @@ int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
 {
     aeFileEvent *fe;
 
-    fe = malloc(sizeof(*fe));
+    fe = zmalloc(sizeof(*fe));
     if (fe == NULL) return AE_ERR;
     fe->fd = fd;
     fe->mask = mask;
@@ -89,7 +90,7 @@ void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask)
                 prev->next = fe->next;
             if (fe->finalizerProc)
                 fe->finalizerProc(eventLoop, fe->clientData);
-            free(fe);
+            zfree(fe);
             return;
         }
         prev = fe;
@@ -127,7 +128,7 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
     long long id = eventLoop->timeEventNextId++;
     aeTimeEvent *te;
 
-    te = malloc(sizeof(*te));
+    te = zmalloc(sizeof(*te));
     if (te == NULL) return AE_ERR;
     te->id = id;
     aeAddMillisecondsToNow(milliseconds,&te->when_sec,&te->when_ms);
@@ -152,7 +153,7 @@ int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id)
                 prev->next = te->next;
             if (te->finalizerProc)
                 te->finalizerProc(eventLoop, te->clientData);
-            free(te);
+            zfree(te);
             return AE_OK;
         }
         prev = te;

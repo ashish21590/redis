@@ -36,6 +36,7 @@
 #include "anet.h"
 #include "sds.h"
 #include "adlist.h"
+#include "zmalloc.h"
 
 #define REDIS_CMD_INLINE 1
 #define REDIS_CMD_BULK 2
@@ -178,16 +179,16 @@ static int cliReadBulkReply(int fd, int multibulk) {
         bulklen = -bulklen;
         error = 1;
     }
-    reply = malloc(bulklen);
+    reply = zmalloc(bulklen);
     anetRead(fd,reply,bulklen);
     anetRead(fd,crlf,2);
     if (bulklen && fwrite(reply,bulklen,1,stdout) == 0) {
-        free(reply);
+        zfree(reply);
         return 1;
     }
     if (!multibulk && isatty(fileno(stdout)) && reply[bulklen-1] != '\n')
         printf("\n");
-    free(reply);
+    zfree(reply);
     return error;
 }
 
@@ -269,7 +270,7 @@ static int parseOptions(int argc, char **argv) {
         int lastarg = i==argc-1;
         
         if (!strcmp(argv[i],"-h") && !lastarg) {
-            char *ip = malloc(32);
+            char *ip = zmalloc(32);
             if (anetResolve(NULL,argv[i+1],ip) == ANET_ERR) {
                 printf("Can't resolve %s\n", argv[i]);
                 exit(1);
@@ -315,7 +316,7 @@ int main(int argc, char **argv) {
     argv += firstarg;
     
     /* Turn the plain C strings into Sds strings */
-    argvcopy = malloc(sizeof(char*)*argc+1);
+    argvcopy = zmalloc(sizeof(char*)*argc+1);
     for(j = 0; j < argc; j++)
         argvcopy[j] = sdsnew(argv[j]);
 

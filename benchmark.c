@@ -41,6 +41,7 @@
 #include "anet.h"
 #include "sds.h"
 #include "adlist.h"
+#include "zmalloc.h"
 
 #define REPLY_INT 0
 #define REPLY_RETCODE 1
@@ -107,7 +108,7 @@ static void freeClient(client c) {
     sdsfree(c->ibuf);
     sdsfree(c->obuf);
     close(c->fd);
-    free(c);
+    zfree(c);
     config.liveclients--;
     ln = listSearchKey(config.clients,c);
     assert(ln != NULL);
@@ -237,12 +238,12 @@ static void writeHandler(aeEventLoop *el, int fd, void *privdata, int mask)
 }
 
 static client createClient(void) {
-    client c = malloc(sizeof(struct _client));
+    client c = zmalloc(sizeof(struct _client));
     char err[ANET_ERR_LEN];
 
     c->fd = anetTcpNonBlockConnect(err,config.hostip,config.hostport);
     if (c->fd == ANET_ERR) {
-        free(c);
+        zfree(c);
         fprintf(stderr,"Connect: %s\n",err);
         return NULL;
     }
@@ -325,7 +326,7 @@ void parseOptions(int argc, char **argv) {
             config.keepalive = atoi(argv[i+1]);
             i++;
         } else if (!strcmp(argv[i],"-h") && !lastarg) {
-            char *ip = malloc(32);
+            char *ip = zmalloc(32);
             if (anetResolve(NULL,argv[i+1],ip) == ANET_ERR) {
                 printf("Can't resolve %s\n", argv[i]);
                 exit(1);
@@ -377,7 +378,7 @@ int main(int argc, char **argv) {
     config.loop = 0;
     config.latency = NULL;
     config.clients = listCreate();
-    config.latency = malloc(sizeof(int)*(MAX_LATENCY+1));
+    config.latency = zmalloc(sizeof(int)*(MAX_LATENCY+1));
 
     config.hostip = "127.0.0.1";
     config.hostport = 6379;
@@ -403,7 +404,7 @@ int main(int argc, char **argv) {
         if (!c) exit(1);
         c->obuf = sdscatprintf(c->obuf,"SET foo %d\r\n",config.datasize);
         {
-            char *data = malloc(config.datasize+2);
+            char *data = zmalloc(config.datasize+2);
             memset(data,'x',config.datasize);
             data[config.datasize] = '\r';
             data[config.datasize+1] = '\n';
