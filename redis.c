@@ -66,7 +66,7 @@
 #define REDIS_MAX_ARGS          16
 #define REDIS_DEFAULT_DBNUM     16
 #define REDIS_CONFIGLINE_MAX    1024
-#define REDIS_OBJFREELIST_MAX   10000   /* Max number of objects to cache */
+#define REDIS_OBJFREELIST_MAX   1000000 /* Max number of objects to cache */
 #define REDIS_MAX_SYNC_TIME     60      /* Slave can't take more to sync */
 
 /* Hash table parameters */
@@ -161,6 +161,10 @@ struct redisServer {
     list *objfreelist;          /* A list of freed objects to avoid malloc() */
     time_t lastsave;            /* Unix time of last save succeeede */
     int usedmemory;             /* Used memory in megabytes */
+    /* Fields used only for stats */
+    time_t stat_starttime;         /* server start time */
+    long long stat_numcommands;    /* number of processed commands */
+    long long stat_numconnections; /* number of connections received */
     /* Configuration */
     int verbosity;
     int glueoutputbuf;
@@ -276,7 +280,7 @@ static void flushdbCommand(redisClient *c);
 static void flushallCommand(redisClient *c);
 static void sortCommand(redisClient *c);
 static void lremCommand(redisClient *c);
-static void versionCommand(redisClient *c);
+static void infoCommand(redisClient *c);
 
 /*================================= Globals ================================= */
 
@@ -327,7 +331,7 @@ static struct redisCommand cmdTable[] = {
     {"flushdb",flushdbCommand,1,REDIS_CMD_INLINE},
     {"flushall",flushallCommand,1,REDIS_CMD_INLINE},
     {"sort",sortCommand,-2,REDIS_CMD_INLINE},
-    {"version",versionCommand,1,REDIS_CMD_INLINE},
+    {"info",infoCommand,1,REDIS_CMD_INLINE},
     {NULL,NULL,0,0}
 };
 
@@ -572,6 +576,9 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     REDIS_NOTUSED(id);
     REDIS_NOTUSED(clientData);
 
+    /* Update the global state with the amount of used memory */
+    server.usedmemory = zmalloc_used_memory();
+
     /* If the percentage of used slots in the HT reaches REDIS_HT_MINFILL
      * we resize the hash table to save memory */
     for (j = 0; j < server.dbnum; j++) {
@@ -591,10 +598,10 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Show information about connected clients */
     if (!(loops % 5)) {
-        redisLog(REDIS_DEBUG,"%d clients connected (%d slaves)",
+        redisLog(REDIS_DEBUG,"%d clients connected (%d slaves), %d bytes in use",
             listLength(server.clients)-listLength(server.slaves),
-            listLength(server.slaves));
-        redisLog(REDIS_DEBUG,"%lu bytes of memory in use",(unsigned long) zmalloc_used_memory());
+            listLength(server.slaves),
+            server.usedmemory);
     }
 
     /* Close connections of timedout clients */
@@ -749,6 +756,9 @@ static void initServer() {
     server.lastsave = time(NULL);
     server.dirty = 0;
     server.usedmemory = 0;
+    server.stat_numcommands = 0;
+    server.stat_numconnections = 0;
+    server.stat_starttime = time(NULL);
     aeCreateTimeEvent(server.el, 1000, serverCron, NULL, NULL);
 }
 
@@ -1068,6 +1078,7 @@ static int processCommand(redisClient *c) {
     cmd->proc(c);
     if (server.dirty-dirty != 0 && listLength(server.slaves))
         replicationFeedSlaves(cmd,c->dictid,c->argv,c->argc);
+    server.stat_numcommands++;
 
     /* Prepare the client for the next command */
     if (c->flags & REDIS_CLOSE) {
@@ -1286,6 +1297,7 @@ static void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         close(cfd); /* May be already closed, just ingore errors */
         return;
     }
+    server.stat_numconnections++;
 }
 
 /* ======================= Redis objects implementation ===================== */
@@ -2750,9 +2762,34 @@ static void sortCommand(redisClient *c) {
     zfree(vector);
 }
 
-static void versionCommand(redisClient *c) {
-    addReplySds(c,sdsnew(REDIS_VERSION));
-    addReply(c,shared.crlf);
+static void infoCommand(redisClient *c) {
+    sds info;
+    time_t uptime = time(NULL)-server.stat_starttime;
+    
+    info = sdscatprintf(sdsempty(),
+        "redis_version:%s\r\n"
+        "connected_clients:%d\r\n"
+        "connected_slaves:%d\r\n"
+        "used_memory:%d\r\n"
+        "changes_since_last_save:%lld\r\n"
+        "last_save_time:%d\r\n"
+        "total_connections_received:%lld\r\n"
+        "total_commands_processed:%lld\r\n"
+        "uptime_in_seconds:%d\r\n"
+        "uptime_in_days:%d\r\n"
+        ,REDIS_VERSION,
+        listLength(server.clients)-listLength(server.slaves),
+        listLength(server.slaves),
+        server.usedmemory,
+        server.dirty,
+        server.lastsave,
+        server.stat_numconnections,
+        server.stat_numcommands,
+        uptime,
+        uptime/(3600*24)
+    );
+    addReplySds(c,sdscatprintf(sdsempty(),"%d\r\n",sdslen(info)));
+    addReplySds(c,info);
 }
 
 /* =============================== Replication  ============================= */

@@ -29,6 +29,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 static size_t used_memory = 0;
 
@@ -66,6 +67,14 @@ void zfree(void *ptr) {
     oldsize = *((size_t*)realptr);
     used_memory -= oldsize+sizeof(size_t);
     free(realptr);
+}
+
+char *zstrdup(const char *s) {
+    size_t l = strlen(s)+1;
+    char *p = zmalloc(l);
+
+    memcpy(p,s,l);
+    return p;
 }
 
 size_t zmalloc_used_memory(void) {
