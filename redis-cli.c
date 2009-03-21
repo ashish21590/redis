@@ -181,7 +181,10 @@ static int cliReadBulkReply(int fd, int multibulk) {
     reply = malloc(bulklen);
     anetRead(fd,reply,bulklen);
     anetRead(fd,crlf,2);
-    fwrite(reply,bulklen,1,stdout);
+    if (bulklen && fwrite(reply,bulklen,1,stdout) == 0) {
+        free(reply);
+        return 1;
+    }
     if (!multibulk && isatty(fileno(stdout)) && reply[bulklen-1] != '\n')
         printf("\n");
     free(reply);

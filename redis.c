@@ -2644,7 +2644,6 @@ static void sortCommand(redisClient *c) {
         while(ln) {
             robj *ele = ln->value;
             vector[j].obj = ele;
-            //incrRefCount(ele);
             vector[j].u.score = 0;
             vector[j].u.cmpobj = NULL;
             ln = ln->next;
@@ -2659,7 +2658,6 @@ static void sortCommand(redisClient *c) {
         if (!di) oom("dictGetIterator");
         while((setele = dictNext(di)) != NULL) {
             vector[j].obj = dictGetEntryKey(setele);
-            //incrRefCount(vector[j].obj);
             vector[j].u.score = 0;
             vector[j].u.cmpobj = NULL;
             j++;
@@ -2742,7 +2740,6 @@ static void sortCommand(redisClient *c) {
     decrRefCount(sortval);
     listRelease(operations);
     for (j = 0; j < vectorlen; j++) {
-        //decrRefCount(vector[j].obj);
         if (sortby && alpha && vector[j].u.cmpobj)
             decrRefCount(vector[j].u.cmpobj);
     }
