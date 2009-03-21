@@ -812,7 +812,7 @@ static void loadServerConfig(char *filename) {
                 err = "Invalid port"; goto loaderr;
             }
         } else if (!strcmp(argv[0],"bind") && argc == 2) {
-            server.bindaddr = strdup(argv[1]);
+            server.bindaddr = zstrdup(argv[1]);
         } else if (!strcmp(argv[0],"save") && argc == 3) {
             int seconds = atoi(argv[1]);
             int changes = atoi(argv[2]);
@@ -837,7 +837,7 @@ static void loadServerConfig(char *filename) {
         } else if (!strcmp(argv[0],"logfile") && argc == 2) {
             FILE *fp;
 
-            server.logfile = strdup(argv[1]);
+            server.logfile = zstrdup(argv[1]);
             if (!strcmp(server.logfile,"stdout")) {
                 zfree(server.logfile);
                 server.logfile = NULL;
