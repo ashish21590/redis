@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include "zmalloc.h"
 
 static void sdsOomAbort(void) {
     fprintf(stderr,"SDS: Out Of Memory (SDS_ABORT_ON_OOM defined)\n");
@@ -43,7 +44,7 @@ static void sdsOomAbort(void) {
 sds sdsnewlen(const void *init, size_t initlen) {
     struct sdshdr *sh;
 
-    sh = malloc(sizeof(struct sdshdr)+initlen+1);
+    sh = zmalloc(sizeof(struct sdshdr)+initlen+1);
 #ifdef SDS_ABORT_ON_OOM
     if (sh == NULL) sdsOomAbort();
 #else
@@ -79,7 +80,7 @@ sds sdsdup(const sds s) {
 
 void sdsfree(sds s) {
     if (s == NULL) return;
-    free(s-sizeof(struct sdshdr));
+    zfree(s-sizeof(struct sdshdr));
 }
 
 size_t sdsavail(sds s) {
@@ -103,7 +104,7 @@ static sds sdsMakeRoomFor(sds s, size_t addlen) {
     len = sdslen(s);
     sh = (void*) (s-(sizeof(struct sdshdr)));
     newlen = (len+addlen)*2;
-    newsh = realloc(sh, sizeof(struct sdshdr)+newlen+1);
+    newsh = zrealloc(sh, sizeof(struct sdshdr)+newlen+1);
 #ifdef SDS_ABORT_ON_OOM
     if (newsh == NULL) sdsOomAbort();
 #else
@@ -159,7 +160,7 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
     size_t buflen = 32;
 
     while(1) {
-        buf = malloc(buflen);
+        buf = zmalloc(buflen);
 #ifdef SDS_ABORT_ON_OOM
         if (buf == NULL) sdsOomAbort();
 #else
@@ -170,14 +171,14 @@ sds sdscatprintf(sds s, const char *fmt, ...) {
         vsnprintf(buf, buflen, fmt, ap);
         va_end(ap);
         if (buf[buflen-2] != '\0') {
-            free(buf);
+            zfree(buf);
             buflen *= 2;
             continue;
         }
         break;
     }
     t = sdscat(s, buf);
-    free(buf);
+    zfree(buf);
     return t;
 }
 
@@ -269,7 +270,7 @@ int sdscmp(sds s1, sds s2) {
 sds *sdssplitlen(char *s, int len, char *sep, int seplen, int *count) {
     int elements = 0, slots = 5, start = 0, j;
 
-    sds *tokens = malloc(sizeof(sds)*slots);
+    sds *tokens = zmalloc(sizeof(sds)*slots);
 #ifdef SDS_ABORT_ON_OOM
     if (tokens == NULL) sdsOomAbort();
 #endif
@@ -278,7 +279,7 @@ sds *sdssplitlen(char *s, int len, char *sep, int seplen, int *count) {
         /* make sure there is room for the next element and the final one */
         if (slots < elements+2) {
             slots *= 2;
-            sds *newtokens = realloc(tokens,sizeof(sds)*slots);
+            sds *newtokens = zrealloc(tokens,sizeof(sds)*slots);
             if (newtokens == NULL) {
 #ifdef SDS_ABORT_ON_OOM
                 sdsOomAbort();
@@ -321,7 +322,7 @@ cleanup:
     {
         int i;
         for (i = 0; i < elements; i++) sdsfree(tokens[i]);
-        free(tokens);
+        zfree(tokens);
         return NULL;
     }
 #endif

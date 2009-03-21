@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 #include "adlist.h"
+#include "zmalloc.h"
 
 /* Create a new list. The created list can be freed with
  * AlFreeList(), but private value of every node need to be freed
@@ -41,7 +42,7 @@ list *listCreate(void)
 {
     struct list *list;
 
-    if ((list = malloc(sizeof(*list))) == NULL)
+    if ((list = zmalloc(sizeof(*list))) == NULL)
         return NULL;
     list->head = list->tail = NULL;
     list->len = 0;
@@ -64,10 +65,10 @@ void listRelease(list *list)
     while(len--) {
         next = current->next;
         if (list->free) list->free(current->value);
-        free(current);
+        zfree(current);
         current = next;
     }
-    free(list);
+    zfree(list);
 }
 
 /* Add a new node to the list, to head, contaning the specified 'value'
@@ -80,7 +81,7 @@ list *listAddNodeHead(list *list, void *value)
 {
     listNode *node;
 
-    if ((node = malloc(sizeof(*node))) == NULL)
+    if ((node = zmalloc(sizeof(*node))) == NULL)
         return NULL;
     node->value = value;
     if (list->len == 0) {
@@ -106,7 +107,7 @@ list *listAddNodeTail(list *list, void *value)
 {
     listNode *node;
 
-    if ((node = malloc(sizeof(*node))) == NULL)
+    if ((node = zmalloc(sizeof(*node))) == NULL)
         return NULL;
     node->value = value;
     if (list->len == 0) {
@@ -137,7 +138,7 @@ void listDelNode(list *list, listNode *node)
     else
         list->tail = node->prev;
     if (list->free) list->free(node->value);
-    free(node);
+    zfree(node);
     list->len--;
 }
 
@@ -149,7 +150,7 @@ listIter *listGetIterator(list *list, int direction)
 {
     listIter *iter;
     
-    if ((iter = malloc(sizeof(*iter))) == NULL) return NULL;
+    if ((iter = zmalloc(sizeof(*iter))) == NULL) return NULL;
     if (direction == AL_START_HEAD)
         iter->next = list->head;
     else
@@ -160,7 +161,7 @@ listIter *listGetIterator(list *list, int direction)
 
 /* Release the iterator memory */
 void listReleaseIterator(listIter *iter) {
-    free(iter);
+    zfree(iter);
 }
 
 /* Return the next element of an iterator.

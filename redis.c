@@ -52,6 +52,7 @@
 #include "anet.h"   /* Networking the easy way */
 #include "dict.h"   /* Hash tables */
 #include "adlist.h" /* Linked lists */
+#include "zmalloc.h" /* total memory usage aware version of malloc/free */
 
 /* Error codes */
 #define REDIS_OK                0
@@ -589,9 +590,12 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Show information about connected clients */
-    if (!(loops % 5)) redisLog(REDIS_DEBUG,"%d clients connected (%d slaves)",
-        listLength(server.clients)-listLength(server.slaves),
-        listLength(server.slaves));
+    if (!(loops % 5)) {
+        redisLog(REDIS_DEBUG,"%d clients connected (%d slaves)",
+            listLength(server.clients)-listLength(server.slaves),
+            listLength(server.slaves));
+        redisLog(REDIS_DEBUG,"%lu bytes of memory in use",(unsigned long) zmalloc_used_memory());
+    }
 
     /* Close connections of timedout clients */
     if (!(loops % 10))
@@ -679,7 +683,7 @@ static void createSharedObjects(void) {
 }
 
 static void appendServerSaveParams(time_t seconds, int changes) {
-    server.saveparams = realloc(server.saveparams,sizeof(struct saveparam)*(server.saveparamslen+1));
+    server.saveparams = zrealloc(server.saveparams,sizeof(struct saveparam)*(server.saveparamslen+1));
     if (server.saveparams == NULL) oom("appendServerSaveParams");
     server.saveparams[server.saveparamslen].seconds = seconds;
     server.saveparams[server.saveparamslen].changes = changes;
@@ -687,7 +691,7 @@ static void appendServerSaveParams(time_t seconds, int changes) {
 }
 
 static void ResetServerSaveParams() {
-    free(server.saveparams);
+    zfree(server.saveparams);
     server.saveparams = NULL;
     server.saveparamslen = 0;
 }
@@ -727,7 +731,7 @@ static void initServer() {
     server.objfreelist = listCreate();
     createSharedObjects();
     server.el = aeCreateEventLoop();
-    server.dict = malloc(sizeof(dict*)*server.dbnum);
+    server.dict = zmalloc(sizeof(dict*)*server.dbnum);
     if (!server.dict || !server.clients || !server.slaves || !server.el || !server.objfreelist)
         oom("server initialization"); /* Fatal OOM */
     server.fd = anetTcpServer(server.neterr, server.port, server.bindaddr);
@@ -825,7 +829,7 @@ static void loadServerConfig(char *filename) {
 
             server.logfile = strdup(argv[1]);
             if (!strcmp(server.logfile,"stdout")) {
-                free(server.logfile);
+                zfree(server.logfile);
                 server.logfile = NULL;
             }
             if (server.logfile) {
@@ -867,7 +871,7 @@ static void loadServerConfig(char *filename) {
         }
         for (j = 0; j < argc; j++)
             sdsfree(argv[j]);
-        free(argv);
+        zfree(argv);
         sdsfree(line);
     }
     fclose(fp);
@@ -910,7 +914,7 @@ static void freeClient(redisClient *c) {
         server.master = NULL;
         server.replstate = REDIS_REPL_CONNECT;
     }
-    free(c);
+    zfree(c);
 }
 
 static void glueReplyBuffersIfNeeded(redisClient *c) {
@@ -1188,7 +1192,7 @@ again:
                     sdsfree(argv[j]);
                 }
             }
-            free(argv);
+            zfree(argv);
             /* Execute the command. If the client is still valid
              * after processCommand() return and there is something
              * on the query buffer try to process the next command. */
@@ -1226,7 +1230,7 @@ static int selectDb(redisClient *c, int id) {
 }
 
 static redisClient *createClient(int fd) {
-    redisClient *c = malloc(sizeof(*c));
+    redisClient *c = zmalloc(sizeof(*c));
 
     anetNonBlock(NULL,fd);
     anetTcpNoDelay(NULL,fd);
@@ -1294,7 +1298,7 @@ static robj *createObject(int type, void *ptr) {
         o = listNodeValue(head);
         listDelNode(server.objfreelist,head);
     } else {
-        o = malloc(sizeof(*o));
+        o = zmalloc(sizeof(*o));
     }
     if (!o) oom("createObject");
     o->type = type;
@@ -1361,7 +1365,7 @@ static void decrRefCount(void *obj) {
         }
         if (listLength(server.objfreelist) > REDIS_OBJFREELIST_MAX ||
             !listAddNodeHead(server.objfreelist,o))
-            free(o);
+            zfree(o);
     }
 }
 
@@ -1545,7 +1549,7 @@ static int loadDb(char *filename) {
         if (klen <= REDIS_LOADBUF_LEN) {
             key = buf;
         } else {
-            key = malloc(klen);
+            key = zmalloc(klen);
             if (!key) oom("Loading DB from file");
         }
         if (fread(key,klen,1,fp) == 0) goto eoferr;
@@ -1557,7 +1561,7 @@ static int loadDb(char *filename) {
             if (vlen <= REDIS_LOADBUF_LEN) {
                 val = vbuf;
             } else {
-                val = malloc(vlen);
+                val = zmalloc(vlen);
                 if (!val) oom("Loading DB from file");
             }
             if (vlen && fread(val,vlen,1,fp) == 0) goto eoferr;
@@ -1577,7 +1581,7 @@ static int loadDb(char *filename) {
                 if (vlen <= REDIS_LOADBUF_LEN) {
                     val = vbuf;
                 } else {
-                    val = malloc(vlen);
+                    val = zmalloc(vlen);
                     if (!val) oom("Loading DB from file");
                 }
                 if (vlen && fread(val,vlen,1,fp) == 0) goto eoferr;
@@ -1590,7 +1594,7 @@ static int loadDb(char *filename) {
                         oom("dictAdd");
                 }
                 /* free the temp buffer if needed */
-                if (val != vbuf) free(val);
+                if (val != vbuf) zfree(val);
                 val = NULL;
             }
         } else {
@@ -1603,16 +1607,16 @@ static int loadDb(char *filename) {
             exit(1);
         }
         /* Iteration cleanup */
-        if (key != buf) free(key);
-        if (val != vbuf) free(val);
+        if (key != buf) zfree(key);
+        if (val != vbuf) zfree(val);
         key = val = NULL;
     }
     fclose(fp);
     return REDIS_OK;
 
 eoferr: /* unexpected end of file is handled here with a fatal exit */
-    if (key != buf) free(key);
-    if (val != vbuf) free(val);
+    if (key != buf) zfree(key);
+    if (val != vbuf) zfree(val);
     redisLog(REDIS_WARNING,"Short read loading DB. Unrecoverable error, exiting now.");
     exit(1);
     return REDIS_ERR; /* Just to avoid warning */
@@ -2362,7 +2366,7 @@ static int qsortCompareSetsByCardinality(const void *s1, const void *s2) {
 }
 
 static void sinterGenericCommand(redisClient *c, robj **setskeys, int setsnum, robj *dstkey) {
-    dict **dv = malloc(sizeof(dict*)*setsnum);
+    dict **dv = zmalloc(sizeof(dict*)*setsnum);
     dictIterator *di;
     dictEntry *de;
     robj *lenobj = NULL, *dstset = NULL;
@@ -2375,13 +2379,13 @@ static void sinterGenericCommand(redisClient *c, robj **setskeys, int setsnum, r
         
         de = dictFind(c->dict,setskeys[j]);
         if (!de) {
-            free(dv);
+            zfree(dv);
             addReply(c,dstkey ? shared.nokeyerr : shared.nil);
             return;
         }
         setobj = dictGetEntryVal(de);
         if (setobj->type != REDIS_SET) {
-            free(dv);
+            zfree(dv);
             addReply(c,dstkey ? shared.wrongtypeerr : shared.wrongtypeerrbulk);
             return;
         }
@@ -2439,7 +2443,7 @@ static void sinterGenericCommand(redisClient *c, robj **setskeys, int setsnum, r
         lenobj->ptr = sdscatprintf(sdsempty(),"%d\r\n",cardinality);
     else
         addReply(c,shared.ok);
-    free(dv);
+    zfree(dv);
 }
 
 static void sinterCommand(redisClient *c) {
@@ -2463,7 +2467,7 @@ static void flushallCommand(redisClient *c) {
 }
 
 redisSortOperation *createSortOperation(int type, robj *pattern) {
-    redisSortOperation *so = malloc(sizeof(*so));
+    redisSortOperation *so = zmalloc(sizeof(*so));
     if (!so) oom("createSortOperation");
     so->type = type;
     so->pattern = pattern;
@@ -2635,7 +2639,7 @@ static void sortCommand(redisClient *c) {
     vectorlen = (sortval->type == REDIS_LIST) ?
         listLength((list*)sortval->ptr) :
         dictGetHashTableUsed((dict*)sortval->ptr);
-    vector = malloc(sizeof(redisSortObject)*vectorlen);
+    vector = zmalloc(sizeof(redisSortObject)*vectorlen);
     if (!vector) oom("allocating objects vector for SORT");
     j = 0;
     if (sortval->type == REDIS_LIST) {
@@ -2743,7 +2747,7 @@ static void sortCommand(redisClient *c) {
         if (sortby && alpha && vector[j].u.cmpobj)
             decrRefCount(vector[j].u.cmpobj);
     }
-    free(vector);
+    zfree(vector);
 }
 
 static void versionCommand(redisClient *c) {
